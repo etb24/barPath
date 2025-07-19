@@ -35,6 +35,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'cog' : 'cog-outline'} color={color} size={24} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

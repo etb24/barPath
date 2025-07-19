@@ -42,3 +42,7 @@ app-example
 # platform builds
 android/
 ios/
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
