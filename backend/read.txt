@@ -1,1 +1,0 @@
-backend environmnt for computer vision and api scripts
