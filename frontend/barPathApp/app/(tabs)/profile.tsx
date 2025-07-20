@@ -16,9 +16,7 @@ export default function Library() {
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Profile screen</Text>
-      <View style={styles.buttonContainer}>
         <Button title="Sign Out" onPress={handleSignOut} color="#ff4444" />
-      </View>
     </View>
   );
 }
@@ -27,16 +25,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#25292e',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   text: {
     color: '#fff',
-    fontSize: 18,
-    marginBottom: 20,
   },
-  buttonContainer: {
-    marginTop: 20,
-    width: 200,
+  button: {
+    fontSize: 20,
+    textDecorationLine: 'underline',
+    color: '#fff',
   },
 });
