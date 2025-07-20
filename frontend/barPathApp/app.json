@@ -11,7 +11,11 @@
     "ios": {
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
-      "bundleIdentifier": "com.ethan.barPath"
+      "bundleIdentifier": "com.ethan.barPath",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library so you can select videos to process and save them back to your camera roll.",
+        "NSPhotoLibraryAddUsageDescription": "We save processed videos to your photo library so you can view them outside the app."
+      }
     },
     "android": {
       "adaptiveIcon": {

@@ -1,4 +1,3 @@
-# app/main.py
 import os
 import uuid
 from fastapi import FastAPI, File, UploadFile, HTTPException
@@ -29,6 +28,11 @@ def _cleanup_file(path: str):
         os.remove(path)
     except OSError:
         pass
+
+@app.get("/")
+async def read_root():
+    return {"message": "Barbell Tracker API is up and running"}
+
 
 @app.post("/process", response_class=FileResponse)
 async def process_video(

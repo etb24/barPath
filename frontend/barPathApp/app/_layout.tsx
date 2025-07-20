@@ -29,15 +29,13 @@ export default function RootLayout() {
     const inProtectedRoute = ['processing', 'preview'].includes(segments[0]);
 
     if (user && !inAuthGroup && !inProtectedRoute) {
-      //user is signed in but not in tabs or protected route, redirect to tabs
+      // user is signed in but not in tabs or protected route, redirect to tabs
       router.replace('/(tabs)');
     } else if (!user && (inAuthGroup || inProtectedRoute)) {
-      //user is not signed in but trying to access protected routes
+      // user is not signed in but trying to access protected routes
       router.replace('/login');
     }
   }, [user, initializing, segments]);
-
-  // Show loading screen while checking auth
   if (initializing) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#25292e' }}>
@@ -48,17 +46,17 @@ export default function RootLayout() {
   
 
   return (
-    <Stack>
-      <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="processing" 
-        options={{ 
-          headerShown: false,
-          gestureEnabled: false //prevent swipe back during processing
-        }} 
-      />
-      <Stack.Screen name="preview" options={{ headerShown: false }}/>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: false,    // disable edge-swipe everywhere
+      }}
+      initialRouteName="(tabs)"   // start in tabs by default
+    >
+      <Stack.Screen name="login" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="processing" />
+      <Stack.Screen name="preview" />
     </Stack>
   );
 }

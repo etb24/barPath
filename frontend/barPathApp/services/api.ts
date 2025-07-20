@@ -1,47 +1,47 @@
-import { getAuth } from '@react-native-firebase/auth';
+import * as FileSystem from 'expo-file-system';
 
-const API_URL = 'http://localhost:8000'; //change to server IP
+const API_BASE = 'http://localhost:8000';  // FastAPI URL
 
-export const getAuthToken = async () => {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  
-  if (!user) {
-    throw new Error('User not authenticated');
-  }
-  
-  //gets a fresh token from Firebase
-  return await user.getIdToken();
-};
+/**
+ * Uploads a video file to the /process endpoint, downloads the processed video,
+ * writes it into cacheDirectory, and returns its file:// URI.
+ */
+export async function uploadVideo(inputUri: string): Promise<string> {
+  // build form‑data
+  const formData = new FormData();
+  formData.append('file', {
+    uri:  inputUri,
+    name: inputUri.split('/').pop(),
+    type: 'video/mp4',
+  } as any);
 
-export const uploadVideo = async (videoUri: string, title: string) => {
-  try {
-    //get the token from the logged-in user
-    const token = await getAuthToken();
-    
-    const formData = new FormData();
-    formData.append('video', {
-      uri: videoUri,
-      type: 'video/mp4',
-      name: 'video.mp4',
-    } as any);
-    formData.append('title', title);
+  // post to FastAPI
+  const res = await fetch(`${API_BASE}/process`, {
+    method:  'POST',
+    body:    formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
-    const response = await fetch(`${API_URL}/api/videos/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
+  // grab Blob
+  const blob = await res.blob();
 
-    if (!response.ok) {
-      throw new Error('Upload failed');
-    }
+  // convert Blob → base64
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      resolve(dataUrl.split(',')[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 
-    return await response.json();
-  } catch (error) {
-    console.error('Upload error:', error);
-    throw error;
-  }
-};
+  // write base64 into a file in cacheDirectory
+  const outUri = FileSystem.cacheDirectory + 'processed.mp4';
+  await FileSystem.writeAsStringAsync(outUri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  return outUri;  
+}
