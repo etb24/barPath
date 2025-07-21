@@ -1,48 +1,90 @@
 import React, { useEffect, useState } from 'react';
-import { View, Button, StyleSheet, Alert, Text, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, ActivityIndicator, } from 'react-native';
 import { Video, ResizeMode, VideoReadyForDisplayEvent } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import { ref as storageRef, getDownloadURL, putFile } from '@react-native-firebase/storage';
+import { collection, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
+import { auth, storageDb, db } from '../services/FirebaseConfig';
 
 export default function PreviewScreen() {
-  const { processedUri } = useLocalSearchParams<{ processedUri: string }>();
+  const { processedUri, liftName } = useLocalSearchParams<{
+    processedUri: string;
+    liftName?:    string;
+  }>();
   const router = useRouter();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const user   = auth.currentUser!;
+  
 
-  // start with a default aspect ratio for container fitting
-  const [ratio, setRatio] = useState<number>(16 / 9);
+  const [hasPermission, setHasPermission] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [ratio, setRatio] = useState(16/9);
 
+  // request local-save permission once
   useEffect(() => {
-    (async () => {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
+    MediaLibrary.requestPermissionsAsync()
+      .then(({ status }) => setHasPermission(status === 'granted'))
+      .catch(() => setHasPermission(false));
   }, []);
 
+  // save to Camera Roll (local file)
   const saveToCameraRoll = async () => {
     if (!hasPermission) {
-      Alert.alert('Permission required', 'Please allow photo access to save the video.');
-      return;
+      return Alert.alert('Permission required', 'Allow photo access to save.');
     }
     try {
+      setBusy(true);
       const asset = await MediaLibrary.createAssetAsync(processedUri);
       await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
-      Alert.alert('Saved!', 'Your video has been saved to your camera roll.');
+      Alert.alert('Saved', 'Video saved to camera roll.');
       router.replace('/(tabs)');
-    } catch (error: any) {
-      Alert.alert('Save failed', error.message);
+    } catch (e: any) {
+      Alert.alert('Save failed', e.message);
+    } finally {
+      setBusy(false);
     }
+  };
+
+  async function saveToLibrary( processedUri: string, liftName: string ): Promise<void> {
+  const user    = auth.currentUser!;
+  const videoId = Date.now().toString();
+
+  // upload the video file
+  const vidPath = `${user.uid}/${videoId}.mp4`;
+  const vidRef  = storageRef(storageDb, vidPath);
+  await putFile(vidRef, processedUri);
+  const url     = await getDownloadURL(vidRef);
+
+  // generate a thumbnail locally (to optimize thumbnail generation)
+  const { uri: thumbLocalUri } = await VideoThumbnails.getThumbnailAsync(
+    processedUri,
+    { time: 1000, quality: 0.5 }
+  );
+
+  // upload the thumbnail JPEG
+  const thumbPath = `${user.uid}/thumbs/${videoId}.jpg`;
+  const thumbRef  = storageRef(storageDb, thumbPath);
+  await putFile(thumbRef, thumbLocalUri);
+  const thumbnailUrl = await getDownloadURL(thumbRef);
+
+  // write both URLs + metadata to Firestore
+  const videosCol = collection(db, 'users', user.uid, 'videos');
+  const videoDoc  = doc(videosCol, videoId);
+  await setDoc(videoDoc, {
+    url,
+    thumbnailUrl,
+    liftName,
+    processedAt: serverTimestamp(),
+  });
+
+  Alert.alert('Saved', 'Video added to your library.');
   };
 
   const discard = () => {
     router.replace('/(tabs)');
   };
 
-   const saveToLibrary = () => {
-    // TODO: hook Firebase/Firestore library‐save logic here
-    Alert.alert('Library', 'Save to library not implemented yet.');
-  };
-  
   return (
     <View style={styles.container}>
       <View style={[styles.videoCard, { aspectRatio: ratio }]}>
@@ -54,20 +96,40 @@ export default function PreviewScreen() {
           resizeMode={ResizeMode.COVER}
           onReadyForDisplay={(e: VideoReadyForDisplayEvent) => {
             const { width, height } = e.naturalSize;
-            setRatio(width / height);
+            if (width && height) setRatio(width / height);
           }}
         />
       </View>
 
-      <View style={styles.buttons}>
-        <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={saveToCameraRoll}>
-          <Text style={styles.buttonText}>Save</Text>
+      <View style={styles.saveRow}>
+        <TouchableOpacity
+          style={[styles.button, styles.saveButton]}
+          onPress={saveToCameraRoll}
+          disabled={busy}
+        >
+          <Text style={styles.saveButtonText}>Save to Camera Roll</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.button, styles.button]} onPress={discard}>
-          <Text style={styles.buttonText}>Discard</Text>
+
+        <TouchableOpacity
+          style={[styles.button, styles.saveButton]}
+          onPress={() => saveToLibrary(processedUri, liftName || 'Unknown Lift')}
+          disabled={busy}
+        >
+         {/* TODO: FIX THIS so activity indicator works */}
+          {busy
+            ? <ActivityIndicator color="#25292e" />
+            : <Text style={styles.saveButtonText}>Save to Library</Text>
+          }
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={saveToLibrary}>
-          <Text style={styles.buttonText}>Save to Library</Text>
+      </View>
+
+      <View style={styles.discardRow}>
+        <TouchableOpacity
+          style={[styles.button, styles.discardButton]}
+          onPress={discard}
+          disabled={busy}
+        >
+          <Text style={styles.discardButtonText}>Discard</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -76,49 +138,54 @@ export default function PreviewScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex:           1,
-    backgroundColor:'#25292e',
-    padding:        16,
-    justifyContent: 'center',
-    alignItems:     'center',
+    flex: 1,
+    backgroundColor: '#25292e',
+    paddingTop: 75,
+    padding: 16,
+    alignItems: 'center',
   },
-
   videoCard: {
-    width:          '100%',
-    height:         600,
-    borderRadius:   16,
-    borderWidth:    4,
-    borderColor:    '#ffd33d',
-    overflow:       'hidden',
-    marginBottom:   20,
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 4,
+    borderColor: '#ffd33d',
+    overflow: 'hidden',
     backgroundColor:'#000',
+    marginBottom: 20,
   },
-
   video: {
     flex: 1,
   },
-
-  buttons: {
+  saveRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    marginTop: 20,
+    marginBottom: 16,
   },
-
+  discardRow: {
+    width: '100%',
+    alignItems: 'center',
+  },
   button: {
-    flex: 1,
+    marginHorizontal: 5,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#444',
     alignItems: 'center',
-    marginHorizontal: 5,
   },
-
   saveButton: {
     backgroundColor: '#ffd33d',
+    width: '48%',
   },
-
-  buttonText: {
+  discardButton: {
+    backgroundColor: '#ff4444',
+    width: '40%',
+  },
+  saveButtonText: {
+    color: '#25292e',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  discardButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
