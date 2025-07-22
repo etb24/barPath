@@ -3,15 +3,15 @@ import { View, Text, FlatList, StyleSheet, Alert, Dimensions, TouchableOpacity, 
 import { Video, ResizeMode } from 'expo-av';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
-import { getAuth } from '@react-native-firebase/auth';
 import firestore, {
   FirebaseFirestoreTypes
 } from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-//import { auth, storageDb, db } from '../services/FirebaseConfig';
+import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject} from '../../services/FirebaseConfig';
+import { QueryDocumentSnapshot } from '@firebase/firestore-types';
 
 
-// TODO: FIX DEPRECATIONS, FIX MODAL
+// TODO : FIX MODAL AND FORMATTING
 
 interface VideoItem {
   id: string;
@@ -25,54 +25,70 @@ const { width } = Dimensions.get('window');
 const THUMB_SIZE = (width - 48) / 2;
 
 export default function LibraryScreen() {
-  const user = getAuth().currentUser!;
-  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const user = auth.currentUser!;
+  const [videos, setVideos]   = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [selected, setSelected] = useState<VideoItem|null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const unsub = firestore()
-      .collection('users').doc(user.uid)
-      .collection('videos').orderBy('processedAt','desc')
-      .onSnapshot(snap => {
-        const items = snap.docs.map(d => ({
-          id:           d.id,
-          ...(d.data() as any),
-        }));
+    if (!user) {
+      setVideos([]);
+      setLoading(false);
+      return;
+    }
+
+    // build a typed query
+    const videosQuery = query(
+      collection(db, 'users', user.uid, 'videos'),
+      orderBy('processedAt', 'desc')
+    );
+
+    // subscribe
+    const unsubscribe = onSnapshot(
+      videosQuery,
+      snapshot => {
+        const items = snapshot.docs.map(
+          (d: QueryDocumentSnapshot<VideoItem>) => ({
+            ...d.data(),  // d.data() is now typed as VideoItem
+            id: d.id,
+          })
+        );
         setVideos(items);
         setLoading(false);
-      }, err => {
-        Alert.alert('Error', err.message);
+      },
+      error => {
+        Alert.alert('Error', error.message);
         setLoading(false);
-      });
-    return unsub;
-  }, []);
+      }
+    );
+
+    // cleanup
+    return () => unsubscribe();
+  }, [user]);
 
   async function handleDelete(item: VideoItem) {
   setBusy(true);
   try {
-    // try to delete the file, but don’t abort if it’s already gone
-    try {
-      await storage().ref(`${user.uid}/${item.id}.mp4`).delete();
-    } catch (e: any) {
-      if (e.code === 'storage/object-not-found') {
-        console.warn(`Storage file missing, ignoring: ${item.id}.mp4`);
-      } else {
-        // re‑throw unexpected errors
-        throw e;
-      }
-    }
-    await firestore()
-      .collection('users')
-      .doc(user.uid)
-      .collection('videos')
-      .doc(item.id)
-      .delete();
+    // delete the MP4 from storage
+    const vidRef = storageRef(storageDb, `${user.uid}/${item.id}.mp4`);
+    await deleteObject(vidRef).catch((e) => {
+      if (e.code !== 'storage/object-not-found') throw e;
+    });
+
+    // thumbnail
+    const thumbRef = storageRef(storageDb, `${user.uid}/thumbs/${item.id}.jpg`);
+    await deleteObject(thumbRef).catch((e) => {
+      if (e.code !== 'storage/object-not-found') throw e;
+    });
+
+    // Firestore document
+    const docRef = doc(db, 'users', user.uid, 'videos', item.id);
+    await deleteDoc(docRef);
 
     Alert.alert('Deleted', 'Video removed from your library.');
   } catch (e: any) {
-    console.error(e);
     Alert.alert('Error', e.message);
   } finally {
     setBusy(false);
@@ -80,27 +96,40 @@ export default function LibraryScreen() {
   }
   }
 
-  const handleSave = async (item: VideoItem) => {
-    setBusy(true);
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') throw new Error('Permission denied');
-      // download remote URL → local
-      const filename = item.thumbnailUrl.split('/').pop() || `${item.id}.mp4`;
-      const localUri = FileSystem.cacheDirectory + filename;
-      const dl       = await FileSystem.downloadAsync(item.url, localUri);
-      if (dl.status !== 200) throw new Error(`Download failed: ${dl.status}`);
-      // save to camera roll
-      const asset = await MediaLibrary.createAssetAsync(dl.uri);
-      await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
-      Alert.alert('Saved','Video saved to camera roll.');
-      await FileSystem.deleteAsync(dl.uri,{idempotent:true});
-    } catch(e:any) {
-      Alert.alert('Save failed', e.message);
-    } finally {
-      setBusy(false);
+  async function handleSave(item: VideoItem) {
+  setBusy(true);
+  try {
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status !== 'granted') {
+      throw new Error('Photo library permission not granted');
     }
-  };
+
+    // get mp4 filename from the video URL
+    const parts   = item.url.split('/');
+    const filename = parts[parts.length - 1] || `video-${item.id}.mp4`;
+    const localUri = FileSystem.cacheDirectory + filename;
+
+    // download the mp4 to localUri
+    const downloadRes = await FileSystem.downloadAsync(item.url, localUri);
+    if (downloadRes.status !== 200) {
+      throw new Error(`Download failed with status ${downloadRes.status}`);
+    }
+    const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
+    const album = await MediaLibrary.getAlbumAsync('BarbellTracker');
+    if (album == null) {
+      await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
+    } else {
+      await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+    }
+
+    Alert.alert('Saved', 'Video has been saved to your camera roll!');
+  } catch (e: any) {
+    Alert.alert('Save failed', e.message);
+  } finally {
+    setBusy(false);
+  }
+  }
+
 
   const renderThumb = ({ item }: {item:VideoItem}) => (
     <TouchableOpacity
@@ -143,7 +172,7 @@ export default function LibraryScreen() {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.baseButton,styles.saveButton]}
-                onPress={()=>handleSave(selected)} disabled={busy}
+                onPress={()=>handleSave(selected!)} disabled={busy}
               >
                 {busy ? <ActivityIndicator/> : <Text>Save</Text>}
               </TouchableOpacity>
