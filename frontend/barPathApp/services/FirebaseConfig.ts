@@ -19,10 +19,10 @@ import {
   serverTimestamp,
 } from '@react-native-firebase/firestore';
 
-const app       = getApp();
-export const auth      = getAuth(app);
+const app = getApp();
+export const auth = getAuth(app);
 export const storageDb = getStorage(app);
-export const db        = getFirestore(app);
+export const db = getFirestore(app);
 
 export {
   storageRef,

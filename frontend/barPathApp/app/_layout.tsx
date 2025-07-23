@@ -12,8 +12,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     // subscribe once
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
       if (initializing) setInitializing(false);
     });
     return unsubscribe;
@@ -42,16 +42,16 @@ export default function RootLayout() {
   
   return (
     <Stack
-      screenOptions={{
+      screenOptions = {{
         headerShown: false,
         gestureEnabled: false, // disable edge-swipe everywhere
       }}
-      initialRouteName="(tabs)" // start in tabs by default
+      initialRouteName= "(tabs)" // start in tabs by default
     >
-      <Stack.Screen name="login" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="processing" />
-      <Stack.Screen name="preview" />
+      <Stack.Screen name= "login" />
+      <Stack.Screen name= "(tabs)" />
+      <Stack.Screen name= "processing" />
+      <Stack.Screen name= "preview" />
     </Stack>
   );
 }

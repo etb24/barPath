@@ -6,7 +6,6 @@ import * as FileSystem from 'expo-file-system';
 import firestore, {
   FirebaseFirestoreTypes
 } from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
 import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject} from '../../services/FirebaseConfig';
 import { QueryDocumentSnapshot } from '@firebase/firestore-types';
 
@@ -136,55 +135,55 @@ export default function LibraryScreen() {
       style={styles.thumbContainer}
       onPress={() => setSelected(item)}
     >
-      <Image source={{ uri: item.thumbnailUrl }} style={styles.thumb} />
-      <Text numberOfLines={1} style={styles.thumbLabel}>{item.liftName}</Text>
+      <Image source = {{ uri: item.thumbnailUrl }} style = {styles.thumb} />
+      <Text numberOfLines = {1} style = {styles.thumbLabel}>{item.liftName}</Text>
     </TouchableOpacity>
   );
 
   if (loading) return (
-    <View style={styles.center}><ActivityIndicator color="#ffd33d" size="large"/></View>
+    <View style = {styles.center}><ActivityIndicator color = "#ffd33d" size="large"/></View>
   );
-  if (videos.length===0) return (
-    <View style={styles.center}><Text style={styles.emptyText}>No saved videos.</Text></View>
+  if (videos.length === 0) return (
+    <View style = {styles.center}><Text style = {styles.emptyText}>No saved videos.</Text></View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style = {styles.container}>
       <FlatList
-        data={videos}
-        keyExtractor={v=>v.id}
-        renderItem={renderThumb}
-        numColumns={2}
-        columnWrapperStyle={{justifyContent:'space-between'}}
-        contentContainerStyle={{padding:16}}
+        data = {videos}
+        keyExtractor = {v => v.id}
+        renderItem = {renderThumb}
+        numColumns = {2}
+        columnWrapperStyle = {{justifyContent:'space-between'}}
+        contentContainerStyle = {{padding:16}}
       />
 
-      <Modal visible={!!selected} animationType="slide">
-        <View style={styles.modal}>
+      <Modal visible = {!!selected} animationType="slide">
+        <View style = {styles.modal}>
           {selected && <>
             <Video
-              source={{uri:selected.url}}
-              style={styles.modalVideo}
+              source = {{uri:selected.url}}
+              style = {styles.modalVideo}
               useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
+              resizeMode = {ResizeMode.CONTAIN}
               shouldPlay
             />
-            <View style={styles.modalButtons}>
+            <View style = {styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.baseButton,styles.saveButton]}
-                onPress={()=>handleSave(selected!)} disabled={busy}
+                style = {[styles.baseButton,styles.saveButton]}
+                onPress = {()=>handleSave(selected!)} disabled={busy}
               >
                 {busy ? <ActivityIndicator/> : <Text>Save</Text>}
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.baseButton,styles.deleteButton]}
-                onPress={()=>handleDelete(selected)} disabled={busy}
+                style = {[styles.baseButton,styles.deleteButton]}
+                onPress = {()=>handleDelete(selected)} disabled={busy}
               >
                 <Text>Delete</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.baseButton,styles.discardButton]}
-                onPress={()=>setSelected(null)} disabled={busy}
+                style = {[styles.baseButton,styles.discardButton]}
+                onPress = {()=>setSelected(null)} disabled={busy}
               >
                 <Text>Close</Text>
               </TouchableOpacity>

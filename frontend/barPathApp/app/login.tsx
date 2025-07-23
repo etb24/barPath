@@ -45,27 +45,27 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   container: {
-    flex:            1,
+    flex: 1,
     backgroundColor: '#25292e',
-    alignItems:      'center',
-    justifyContent:  'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 24,
   },
   logo: {
-    width:  120,
+    width: 120,
     height: 120,
     marginBottom: 32,
   },
   title: {
-    color:      '#ffd33d',
-    fontSize:   28,
+    color: '#ffd33d',
+    fontSize: 28,
     fontWeight: '700',
     marginBottom: 12,
   },
   subtitle: {
-    color:      '#ccc',
-    fontSize:   16,
-    textAlign:  'center',
+    color: '#ccc',
+    fontSize: 16,
+    textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,
   },
