@@ -3,21 +3,22 @@ import { View, Text, FlatList, StyleSheet, Alert, Dimensions, TouchableOpacity, 
 import { Video, ResizeMode } from 'expo-av';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
-import firestore, {
+import {
   FirebaseFirestoreTypes
 } from '@react-native-firebase/firestore';
-import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject} from '../../services/FirebaseConfig';
+import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject, getDownloadURL} from '../../services/FirebaseConfig';
 import { QueryDocumentSnapshot } from '@firebase/firestore-types';
 
 
 // TODO : FIX MODAL AND FORMATTING
 
 interface VideoItem {
-  id: string;
-  url: string;
-  thumbnailUrl: string;
-  liftName: string;
-  processedAt: FirebaseFirestoreTypes.Timestamp;
+  id:            string;
+  blobPath:      string;
+  url:           string;
+  thumbnailUrl:  string;
+  liftName:      string;
+  processedAt:   FirebaseFirestoreTypes.Timestamp;
 }
 
 const { width } = Dimensions.get('window');
@@ -32,40 +33,54 @@ export default function LibraryScreen() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      setVideos([]);
-      setLoading(false);
-      return;
-    }
+  if (!user) {
+    setVideos([]);
+    setLoading(false);
+    return;
+  }
 
-    // build a typed query
-    const videosQuery = query(
-      collection(db, 'users', user.uid, 'videos'),
-      orderBy('processedAt', 'desc')
-    );
+  const videosQuery = query(
+    collection(db, 'users', user.uid, 'videos'),
+    orderBy('processedAt', 'desc')
+  );
 
-    // subscribe
-    const unsubscribe = onSnapshot(
-      videosQuery,
-      snapshot => {
-        const items = snapshot.docs.map(
-          (d: QueryDocumentSnapshot<VideoItem>) => ({
-            ...d.data(),  // d.data() is now typed as VideoItem
-            id: d.id,
+  const unsubscribe = onSnapshot(
+    videosQuery,
+    async snapshot => {
+      setLoading(true);
+      try {
+        // convert each Firestore doc to VideoItem with fresh URLs
+        const items: VideoItem[] = await Promise.all(
+          snapshot.docs.map(async (d: QueryDocumentSnapshot<any>) => {
+            const data = d.data();
+            const blobPath = data.blobPath as string;
+            const url = await getDownloadURL(storageRef(storageDb, blobPath));
+            const thumbnailUrl = data.thumbnailUrl as string;
+            return {
+              id:           d.id,
+              blobPath,
+              url,
+              thumbnailUrl,
+              liftName:     data.liftName,
+              processedAt:  data.processedAt,
+            };
           })
         );
         setVideos(items);
-        setLoading(false);
-      },
-      error => {
-        Alert.alert('Error', error.message);
+      } catch (err: any) {
+        Alert.alert('Failed to load videos', err.message);
+      } finally {
         setLoading(false);
       }
-    );
+    },
+    error => {
+      Alert.alert('Error', error.message);
+      setLoading(false);
+    }
+  );
 
-    // cleanup
-    return () => unsubscribe();
-  }, [user]);
+  return () => unsubscribe();
+}, [user]);
 
   async function handleDelete(item: VideoItem) {
   setBusy(true);

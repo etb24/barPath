@@ -1,47 +1,57 @@
 import * as FileSystem from 'expo-file-system';
+import { getAuth } from '@react-native-firebase/auth';
+import { ref as storageRef, putFile } from '@react-native-firebase/storage';
+import { storageDb } from './FirebaseConfig';
 
-const API_BASE = 'http://localhost:8000';  // FastAPI URL
+const API_BASE = 'http://localhost:8000';  // fastAPI URL
 
 /**
- * Uploads a video file to the /process endpoint, downloads the processed video,
- * writes it into cacheDirectory, and returns its file:// URI.
+ * Uploads the picked video to Firebase Storage,
+ * tells FastAPI to process it from the bucket,
+ * then downloads the signed URL result into cacheDirectory.
  */
-export async function uploadVideo(inputUri: string): Promise<string> {
-  // build form‑data
-  const formData = new FormData();
-  formData.append('file', {
-    uri:  inputUri,
-    name: inputUri.split('/').pop(),
-    type: 'video/mp4',
-  } as any);
+export async function processVideo(inputUri: string): Promise<{
+  localUri: string;
+  blobPath: string;
+}> {
+  // get user, token, timestamp
+  const auth   = getAuth();
+  const user   = auth.currentUser!;
+  const idToken= await user.getIdToken();
+  const ts     = Date.now().toString();
 
-  // post to FastAPI
-  const res = await fetch(`${API_BASE}/process`, {
+  // upload raw to `${uid}/raw/${ts}.mp4`
+  const rawPath = `${user.uid}/raw/${ts}.mp4`;
+  await putFile(storageRef(storageDb, rawPath), inputUri);
+
+  // call FastAPI
+  const res = await fetch(`${API_BASE}/process_from_bucket`, {
     method:  'POST',
-    body:    formData,
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ blob_path: rawPath }),
   });
-  if (!res.ok) throw new Error(`Server returned ${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
 
-  // grab Blob
-  const blob = await res.blob();
+  // expect both URL and path back from the server
+  const { url, out_blob_path } = (await res.json()) as {
+    url: string;
+    out_blob_path: string;
+  };
 
-  // convert Blob → base64
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string;
-      resolve(dataUrl.split(',')[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  // download preview locally
+  const localUri = `${FileSystem.cacheDirectory}${ts}_processed.mp4`;
+  await FileSystem.downloadAsync(url, localUri);
 
-  // write base64 into a file in cacheDirectory
-  const outUri = FileSystem.cacheDirectory + 'processed.mp4';
-  await FileSystem.writeAsStringAsync(outUri, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  return outUri;  
+  // return both the file URI and the bucket path
+  return {
+    localUri,
+    blobPath: out_blob_path,
+  };
 }
+

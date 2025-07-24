@@ -1,20 +1,20 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { uploadVideo } from '../services/api';
+import { processVideo } from '../services/api';
 
 export default function ProcessingScreen() {
   const { inputUri } = useLocalSearchParams<{ inputUri: string }>();
-  const router       = useRouter();
+  const router = useRouter();
 
   useEffect(() => {
     (async () => {
       try {
-        const processedUri = await uploadVideo(inputUri);
+        const { localUri, blobPath}  = await processVideo(inputUri);
         // as soon as it’s written locally, navigate to preview
         router.replace({
           pathname: '/preview',
-          params:   { processedUri },
+          params: { processedUri: localUri, blobPath},
         });
       } catch (e: any) {
         Alert.alert('Processing failed', e.message || 'Unknown error');
@@ -24,7 +24,7 @@ export default function ProcessingScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View style = {styles.container}>
       <ActivityIndicator size="large" color="#ffd33d" />
     </View>
   );
