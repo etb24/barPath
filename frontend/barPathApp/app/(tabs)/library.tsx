@@ -1,26 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Alert, Dimensions, TouchableOpacity, Image, Modal, ActivityIndicator } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { View, Text, FlatList, StyleSheet, Alert, Dimensions, TouchableOpacity, Image, ActivityIndicator, Platform, } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
-import {
-  FirebaseFirestoreTypes
-} from '@react-native-firebase/firestore';
-import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject, getDownloadURL} from '../../services/FirebaseConfig';
+import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject, getDownloadURL,} from '../../services/FirebaseConfig';
 import { QueryDocumentSnapshot } from '@firebase/firestore-types';
+import { FirebaseFirestoreTypes, } from '@react-native-firebase/firestore';
+import firestore from '@react-native-firebase/firestore';
+import PreviewModal from '../components/PreviewModal';
 
-
-// TODO : FIX MODAL AND FORMATTING
+// TODO : FIX FIRESTORE DEPRECATIONS ON NAME CHANGE, SIGN OUT FIRESTORE ERROR, UPDATE MODAL
 
 interface VideoItem {
-  id:            string;
-  blobPath:      string;
-  url:           string;
-  thumbnailUrl:  string;
-  liftName:      string;
-  processedAt:   FirebaseFirestoreTypes.Timestamp;
+  id: string;
+  blobPath: string;
+  url: string;
+  thumbnailUrl: string;
+  liftName: string;
+  processedAt: FirebaseFirestoreTypes.Timestamp;
 }
 
+// thumbnail dimensions for styles
 const { width } = Dimensions.get('window');
 const THUMB_SIZE = (width - 48) / 2;
 
@@ -86,7 +85,7 @@ export default function LibraryScreen() {
   setBusy(true);
   try {
     // delete the MP4 from storage
-    const vidRef = storageRef(storageDb, `${user.uid}/${item.id}.mp4`);
+    const vidRef = storageRef(storageDb, item.blobPath);
     await deleteObject(vidRef).catch((e) => {
       if (e.code !== 'storage/object-not-found') throw e;
     });
@@ -118,9 +117,8 @@ export default function LibraryScreen() {
       throw new Error('Photo library permission not granted');
     }
 
-    // get mp4 filename from the video URL
-    const parts   = item.url.split('/');
-    const filename = parts[parts.length - 1] || `video-${item.id}.mp4`;
+    // use item.id so there are no query‑strings in the filename
+    const filename = `${item.id}.mp4`;
     const localUri = FileSystem.cacheDirectory + filename;
 
     // download the mp4 to localUri
@@ -128,6 +126,8 @@ export default function LibraryScreen() {
     if (downloadRes.status !== 200) {
       throw new Error(`Download failed with status ${downloadRes.status}`);
     }
+
+    // add to camera roll
     const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
     const album = await MediaLibrary.getAlbumAsync('BarbellTracker');
     if (album == null) {
@@ -142,16 +142,58 @@ export default function LibraryScreen() {
   } finally {
     setBusy(false);
   }
+}
+
+  function openRename(item: VideoItem) {
+  if (Platform.OS === 'ios') {
+    Alert.prompt(
+      "Rename Video", // title
+      "Enter a new name for your video", // optional message
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Save",
+          onPress: async (newName?: string) => {
+            if (typeof newName !== 'string' || !newName.trim()) return;
+            try {
+              // update Firestore (deprecated)
+              await firestore()
+                .collection('users')
+                .doc(user.uid)
+                .collection('videos')
+                .doc(item.id)
+                .update({ liftName: newName });
+
+              // update local state
+              setVideos(videos =>
+                videos.map(v =>
+                  v.id === item.id ? { ...v, liftName: newName } : v
+                )
+              );
+            } catch (e: any) {
+              Alert.alert("Rename failed", e.message);
+            }
+          }
+        }
+      ],
+      "plain-text",
+      item.liftName // prefill with the current name
+    );
   }
+}
 
-
+    
   const renderThumb = ({ item }: {item:VideoItem}) => (
     <TouchableOpacity
       style={styles.thumbContainer}
       onPress={() => setSelected(item)}
     >
       <Image source = {{ uri: item.thumbnailUrl }} style = {styles.thumb} />
-      <Text numberOfLines = {1} style = {styles.thumbLabel}>{item.liftName}</Text>
+      <TouchableOpacity onPress={() => openRename(item)}>
+        <Text numberOfLines={1} style={styles.thumbLabel}>
+          {item.liftName}
+        </Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -172,40 +214,16 @@ export default function LibraryScreen() {
         columnWrapperStyle = {{justifyContent:'space-between'}}
         contentContainerStyle = {{padding:16}}
       />
-
-      <Modal visible = {!!selected} animationType="slide">
-        <View style = {styles.modal}>
-          {selected && <>
-            <Video
-              source = {{uri:selected.url}}
-              style = {styles.modalVideo}
-              useNativeControls
-              resizeMode = {ResizeMode.CONTAIN}
-              shouldPlay
-            />
-            <View style = {styles.modalButtons}>
-              <TouchableOpacity
-                style = {[styles.baseButton,styles.saveButton]}
-                onPress = {()=>handleSave(selected!)} disabled={busy}
-              >
-                {busy ? <ActivityIndicator/> : <Text>Save</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style = {[styles.baseButton,styles.deleteButton]}
-                onPress = {()=>handleDelete(selected)} disabled={busy}
-              >
-                <Text>Delete</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style = {[styles.baseButton,styles.discardButton]}
-                onPress = {()=>setSelected(null)} disabled={busy}
-              >
-                <Text>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </>}
-        </View>
-      </Modal>
+      {selected && (
+        <PreviewModal
+          visible={true}
+          item={selected}
+          busy={busy}
+          onClose={() => setSelected(null)}
+          onSave={() => handleSave(selected)}
+          onDelete={() => handleDelete(selected)}
+        />
+      )}
     </View>
   );
 }
@@ -215,16 +233,19 @@ const styles = StyleSheet.create({
   center: {flex:1,justifyContent:'center',alignItems:'center',backgroundColor:'#25292e'},
   emptyText: {color:'#aaa',fontSize:16},
 
-  thumbContainer:{marginBottom:16,width:THUMB_SIZE},
-  thumb: {width:THUMB_SIZE,height:THUMB_SIZE*(9/16),borderRadius:8,backgroundColor:'#000'},
-  thumbLabel: {color:'#fff',marginTop:4,textAlign:'center'},
-
-  modal: {flex:1,backgroundColor:'#000',justifyContent:'center',alignItems:'center',padding:16},
-  modalVideo: {width:'100%',height:'50%',backgroundColor:'#000'},
-  modalButtons:  {flexDirection:'row',justifyContent:'space-around',width:'100%',marginTop:24},
-
-  baseButton: {paddingVertical:12,paddingHorizontal:16,borderRadius:8,alignItems:'center'},
-  saveButton: {backgroundColor:'#ffd33d'},
-  deleteButton: {backgroundColor:'#ff4444'},
-  discardButton: {backgroundColor:'#444'},
+  thumbContainer: {
+    marginBottom: 16,
+    width: THUMB_SIZE,
+  },
+  thumb: {
+    width: THUMB_SIZE,
+    height: THUMB_SIZE * (16 / 9),
+    borderRadius: 8,
+    backgroundColor: '#000',
+  },
+  thumbLabel: {
+    color: '#fff',
+    marginTop: 4,
+    textAlign: 'center',
+  },
 });
