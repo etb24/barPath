@@ -51,7 +51,7 @@ async def process_from_bucket(
     blob_path: str = Body(..., embed=True),
     user_id: str = Depends(get_current_user_id),
 ):
-    # download raw bytes from Storage ———
+    # download raw bytes from Storage
     blob = bucket.blob(blob_path)
     if not blob.exists():
         raise HTTPException(status_code=404, detail="Source video not found")
