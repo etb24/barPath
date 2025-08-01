@@ -60,10 +60,10 @@ class BarbellPathTracker:
             )
         
         # frame counter
-        cv2.putText(
-            frame, f"Points: {len(positions)}", (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
-        )
+#        cv2.putText(
+#            frame, f"Points: {len(positions)}", (10, 30),
+#            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
+#        )
         
         return frame
     
