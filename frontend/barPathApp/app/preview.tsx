@@ -42,7 +42,7 @@ export default function PreviewScreen() {
       .catch(() => setHasPermission(false));
   }, []);
 
-  // unchanged: save locally
+  // save locally
   const saveToCameraRoll = async () => {
     if (!hasPermission) {
       return Alert.alert('Permission required', 'Allow photo access to save.');
@@ -50,8 +50,13 @@ export default function PreviewScreen() {
     try {
       setBusy(true);
       const asset = await MediaLibrary.createAssetAsync(processedUri);
-      await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
-      Alert.alert('Saved', 'Video saved to camera roll.');
+      const album = await MediaLibrary.getAlbumAsync('BarbellTracker');
+      if (album == null) {
+        await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
+      } else {
+        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+      }
+      Alert.alert('Saved', 'Video has been saved to your camera roll!');
     } catch (e: any) {
       Alert.alert('Save failed', e.message);
     } finally {

@@ -8,7 +8,7 @@ import { FirebaseFirestoreTypes, } from '@react-native-firebase/firestore';
 import firestore from '@react-native-firebase/firestore';
 import PreviewModal from '../components/PreviewModal';
 
-// TODO : FIX FIRESTORE DEPRECATIONS ON NAME CHANGE, SIGN OUT FIRESTORE ERROR, UPDATE MODAL
+// TODO : FIX FIRESTORE DEPRECATIONS ON NAME CHANGE, FIX RENAME STATE CHANGE, SIGN OUT FIRESTORE ERROR, UPDATE MODAL
 
 interface VideoItem {
   id: string;
@@ -32,155 +32,168 @@ export default function LibraryScreen() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-  if (!user) {
-    setVideos([]);
-    setLoading(false);
-    return;
-  }
+    if (!user) {
+      setVideos([]);
+      setLoading(false);
+      return;
+    }
 
-  const videosQuery = query(
-    collection(db, 'users', user.uid, 'videos'),
-    orderBy('processedAt', 'desc')
-  );
+    const videosQuery = query(
+      collection(db, 'users', user.uid, 'videos'),
+      orderBy('processedAt', 'desc')
+    );
 
-  const unsubscribe = onSnapshot(
-    videosQuery,
-    async snapshot => {
-      setLoading(true);
-      try {
-        // convert each Firestore doc to VideoItem with fresh URLs
-        const items: VideoItem[] = await Promise.all(
-          snapshot.docs.map(async (d: QueryDocumentSnapshot<any>) => {
-            const data = d.data();
-            const blobPath = data.blobPath as string;
-            const url = await getDownloadURL(storageRef(storageDb, blobPath));
-            const thumbnailUrl = data.thumbnailUrl as string;
-            return {
-              id:           d.id,
-              blobPath,
-              url,
-              thumbnailUrl,
-              liftName:     data.liftName,
-              processedAt:  data.processedAt,
-            };
-          })
-        );
-        setVideos(items);
-      } catch (err: any) {
-        Alert.alert('Failed to load videos', err.message);
-      } finally {
+    const unsubscribe = onSnapshot(
+      videosQuery,
+      async snapshot => {
+        setLoading(true);
+        try {
+          // convert each Firestore doc to VideoItem with fresh URLs
+          const items: VideoItem[] = await Promise.all(
+            snapshot.docs.map(async (d: QueryDocumentSnapshot<any>) => {
+              const data = d.data();
+              const blobPath = data.blobPath as string;
+              const url = await getDownloadURL(storageRef(storageDb, blobPath));
+              const thumbnailUrl = data.thumbnailUrl as string;
+              return {
+                id:           d.id,
+                blobPath,
+                url,
+                thumbnailUrl,
+                liftName:     data.liftName,
+                processedAt:  data.processedAt,
+              };
+            })
+          );
+          setVideos(items);
+        } catch (err: any) {
+          Alert.alert('Failed to load videos', err.message);
+        } finally {
+          setLoading(false);
+        }
+      },
+      error => {
+        Alert.alert('Error', error.message);
         setLoading(false);
       }
-    },
-    error => {
-      Alert.alert('Error', error.message);
-      setLoading(false);
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  async function handleDelete(item: VideoItem, confirmed = false) {
+
+    if (!confirmed) {
+      return Alert.alert(
+        'Delete video?',
+        `This will permanently delete “${item.liftName || 'this video'}”.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => handleDelete(item, true) },
+        ],
+        { cancelable: true }
+      );
     }
-  );
 
-  return () => unsubscribe();
-}, [user]);
+    setBusy(true);
+    try {
+      // delete the MP4 from storage
+      const vidRef = storageRef(storageDb, item.blobPath);
+      await deleteObject(vidRef).catch((e) => {
+        if (e.code !== 'storage/object-not-found') throw e;
+      });
 
-  async function handleDelete(item: VideoItem) {
-  setBusy(true);
-  try {
-    // delete the MP4 from storage
-    const vidRef = storageRef(storageDb, item.blobPath);
-    await deleteObject(vidRef).catch((e) => {
-      if (e.code !== 'storage/object-not-found') throw e;
-    });
+      // thumbnail
+      const thumbRef = storageRef(storageDb, `${user.uid}/thumbs/${item.id}.jpg`);
+      await deleteObject(thumbRef).catch((e) => {
+        if (e.code !== 'storage/object-not-found') throw e;
+      });
 
-    // thumbnail
-    const thumbRef = storageRef(storageDb, `${user.uid}/thumbs/${item.id}.jpg`);
-    await deleteObject(thumbRef).catch((e) => {
-      if (e.code !== 'storage/object-not-found') throw e;
-    });
+      // Firestore document
+      const docRef = doc(db, 'users', user.uid, 'videos', item.id);
+      await deleteDoc(docRef);
 
-    // Firestore document
-    const docRef = doc(db, 'users', user.uid, 'videos', item.id);
-    await deleteDoc(docRef);
-
-    Alert.alert('Deleted', 'Video removed from your library.');
-  } catch (e: any) {
-    Alert.alert('Error', e.message);
-  } finally {
-    setBusy(false);
-    setSelected(null);
-  }
+      Alert.alert('Deleted', 'Video removed from your library.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setBusy(false);
+      setSelected(null);
+    }
   }
 
   async function handleSave(item: VideoItem) {
-  setBusy(true);
-  try {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-    if (status !== 'granted') {
-      throw new Error('Photo library permission not granted');
+    setBusy(true);
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        throw new Error('Photo library permission not granted');
+      }
+
+      // use item.id so there are no query‑strings in the filename
+      const filename = `${item.id}.mp4`;
+      const localUri = FileSystem.cacheDirectory + filename;
+
+      // download the mp4 to localUri
+      const downloadRes = await FileSystem.downloadAsync(item.url, localUri);
+      if (downloadRes.status !== 200) {
+        throw new Error(`Download failed with status ${downloadRes.status}`);
+      }
+
+      // add to camera roll
+      const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
+      const album = await MediaLibrary.getAlbumAsync('BarbellTracker');
+      if (album == null) {
+        await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
+      } else {
+        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+      }
+
+      Alert.alert('Saved', 'Video has been saved to your camera roll!');
+    } catch (e: any) {
+      Alert.alert('Save failed', e.message);
+    } finally {
+      setBusy(false);
     }
-
-    // use item.id so there are no query‑strings in the filename
-    const filename = `${item.id}.mp4`;
-    const localUri = FileSystem.cacheDirectory + filename;
-
-    // download the mp4 to localUri
-    const downloadRes = await FileSystem.downloadAsync(item.url, localUri);
-    if (downloadRes.status !== 200) {
-      throw new Error(`Download failed with status ${downloadRes.status}`);
-    }
-
-    // add to camera roll
-    const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
-    const album = await MediaLibrary.getAlbumAsync('BarbellTracker');
-    if (album == null) {
-      await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
-    } else {
-      await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-    }
-
-    Alert.alert('Saved', 'Video has been saved to your camera roll!');
-  } catch (e: any) {
-    Alert.alert('Save failed', e.message);
-  } finally {
-    setBusy(false);
   }
-}
 
   function openRename(item: VideoItem) {
-  if (Platform.OS === 'ios') {
-    Alert.prompt(
-      "Rename Video", // title
-      "Enter a new name for your video", // optional message
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Save",
-          onPress: async (newName?: string) => {
-            if (typeof newName !== 'string' || !newName.trim()) return;
-            try {
-              // update Firestore (deprecated)
-              await firestore()
-                .collection('users')
-                .doc(user.uid)
-                .collection('videos')
-                .doc(item.id)
-                .update({ liftName: newName });
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        "Rename Video", // title
+        "Enter a new name for your video", // optional message
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Save",
+            onPress: async (newName?: string) => {
+              if (typeof newName !== 'string' || !newName.trim()) return;
+              try {
+                // update Firestore (deprecated)
+                await firestore()
+                  .collection('users')
+                  .doc(user.uid)
+                  .collection('videos')
+                  .doc(item.id)
+                  .update({ liftName: newName });
 
-              // update local state
-              setVideos(videos =>
-                videos.map(v =>
-                  v.id === item.id ? { ...v, liftName: newName } : v
-                )
-              );
-            } catch (e: any) {
-              Alert.alert("Rename failed", e.message);
+                // update local state
+                setVideos(videos =>
+                  videos.map(v =>
+                    v.id === item.id ? { ...v, liftName: newName } : v
+                  )
+                );
+              } catch (e: any) {
+                Alert.alert("Rename failed", e.message);
+              }
             }
           }
-        }
-      ],
-      "plain-text",
-      item.liftName // prefill with the current name
-    );
+        ],
+        "plain-text",
+        item.liftName // prefill with the current name
+      );
+    }
   }
-}
 
     
   const renderThumb = ({ item }: {item:VideoItem}) => (
@@ -222,6 +235,7 @@ export default function LibraryScreen() {
           onClose={() => setSelected(null)}
           onSave={() => handleSave(selected)}
           onDelete={() => handleDelete(selected)}
+          onRename={() => openRename(selected)}
         />
       )}
     </View>

@@ -10,6 +10,7 @@ export default function libraryModal({
   onClose,
   onSave,
   onDelete,
+  onRename,
 }: {
   visible: boolean;
   item: { url: string; liftName: string } | null;
@@ -17,6 +18,7 @@ export default function libraryModal({
   onClose: () => void;
   onSave: () => void;
   onDelete: () => void;
+  onRename: () => void;
 }) {
   // ← EARLY RETURN: nothing will render (no stray boolean) unless both are provided
   if (!visible || !item) {
@@ -32,13 +34,6 @@ export default function libraryModal({
     >
       <View style = {styles.overlay}>
         <SafeAreaView style = {styles.container}>
-          <View style = {styles.header}>
-            <TouchableOpacity onPress = {onClose}>
-              <Ionicons name = "close" size={28} color="#fff" />
-            </TouchableOpacity>
-            <Text style = {styles.title}>{item.liftName}</Text>
-            <View style = {{ width: 28 }} />
-          </View>
 
           <Video
             source = {{ uri: item.url }}
@@ -47,6 +42,13 @@ export default function libraryModal({
             resizeMode = {ResizeMode.CONTAIN}
             shouldPlay
           />
+
+          <View style = {styles.header}>
+            <TouchableOpacity onPress={onRename}>
+              <Text style = {styles.title}>{item.liftName}</Text>
+              <View style = {{ width: 28 }} />
+            </TouchableOpacity>
+          </View>
 
           <View style = {styles.controls}>
             <TouchableOpacity
@@ -66,6 +68,15 @@ export default function libraryModal({
             >
               <Ionicons name = "trash" size={24} color="#fff" />
             </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.controlButton, styles.closeButton]}
+              onPress = {onClose}
+              disabled = {busy}
+            >
+              <Ionicons name = "close" size={24} color="#black" />
+            </TouchableOpacity>
+          
           </View>
         </SafeAreaView>
       </View>
@@ -83,11 +94,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
+    alignItems: 'center'
   },
   title: {
     color: '#fff',
@@ -115,4 +123,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     backgroundColor: '#ff4444',
   },
+  closeButton: {
+    backgroundColor: 'white',
+  }
 });
