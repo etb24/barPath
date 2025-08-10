@@ -53,7 +53,7 @@ As a former competitive athlete and fitness enthusiast with a history of injurie
 
 - Created REST API using FastAPI for video handling and processing
 - Built a mobile interface in React Native with TypeScript
-- Handled upload progress, authentication state, and result display
+- Handled upload progress, authentication state and result display
 
 ### Cloud and Deployment
 
@@ -77,5 +77,5 @@ As a former competitive athlete and fitness enthusiast with a history of injurie
 
 - Developed and deployed a full mobile application powered by computer vision
 - Processes real-world videos and provides valuable motion analysis
-- Handles real data, users, and network variability in production
+- Handles real data, users and network variability in production
 - Provides a foundation for future fitness-focused computer vision tools
