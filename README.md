@@ -1,6 +1,6 @@
 # Barbell Path Tracker
 
-As a former competitive athlete and fitness enthusiast with a history of injuries, I built a computer vision-powered mobile application that tracks and visualizes barbell movement patterns during weightlifting exercises. It is designed to help athletes improve form, avoid injury, and optimize performance—whether training solo or with a coach.
+As a former competitive athlete and fitness enthusiast with a history of injuries, I built a computer vision-powered mobile application that tracks and visualizes barbell movement patterns during weightlifting exercises. It is designed to help athletes improve form, avoid injury, and optimize performance, whether training solo or with a coach.
 
 <img src="demo.gif" width="50%">
 
