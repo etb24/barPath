@@ -24,17 +24,13 @@ const { width } = Dimensions.get('window');
 const THUMB_SIZE = (width - 48) / 2;
 
 export default function LibraryScreen() {
-  const [user, setUser] = useState<typeof auth.currentUser | null>(auth.currentUser);
+  const user = auth.currentUser;
+  
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [selected, setSelected] = useState<VideoItem|null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-  const stop = auth.onAuthStateChanged(setUser);
-  return stop;
-  }, []);
 
   useEffect(() => {
     if (!user) {

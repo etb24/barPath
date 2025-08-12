@@ -2,7 +2,7 @@ import { SafeAreaView, Text, Button, StyleSheet } from 'react-native';
 import React from 'react';
 import { signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth';
 import { GoogleSignin, GoogleSigninButton } from '@react-native-google-signin/google-signin';
-import { auth } from '../services/FirebaseConfig';
+import { auth } from '../../services/FirebaseConfig';
 
 
 GoogleSignin.configure({

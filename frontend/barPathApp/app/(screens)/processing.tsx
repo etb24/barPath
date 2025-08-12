@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { processVideo } from '../services/api';
+import { processVideo } from '../../services/api';
 
 export default function ProcessingScreen() {
   const { inputUri } = useLocalSearchParams<{ inputUri: string }>();

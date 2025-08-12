@@ -16,8 +16,8 @@ import {
 import {
   collection, doc, setDoc, serverTimestamp
 } from '@react-native-firebase/firestore';
-import { auth, storageDb, db } from '../services/FirebaseConfig';
-import { promotePreview } from '../services/api';
+import { auth, storageDb, db } from '../../services/FirebaseConfig';
+import { promotePreview } from '../../services/api';
 
 export default function PreviewScreen() {
   const {

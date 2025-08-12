@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
-import { auth, onAuthStateChanged } from '../services/FirebaseConfig';
+import { auth, onAuthStateChanged } from '../services/FirebaseConfig'; // or "@/services/FirebaseConfig"
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 export default function RootLayout() {
@@ -11,9 +11,8 @@ export default function RootLayout() {
   const segments = useSegments();
 
   useEffect(() => {
-    // subscribe once
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
       if (initializing) setInitializing(false);
     });
     return unsubscribe;
@@ -22,36 +21,37 @@ export default function RootLayout() {
   useEffect(() => {
     if (initializing) return;
 
-    const inTabs = segments[0] === '(tabs)';
-    const inProtectedRoute = ['processing','preview'].includes(segments[0]);
+    const root = (segments[0] ?? '') as string; // "(tabs)" | "(screens)" | ""
+    const leaf = ((segments[segments.length - 1] ?? '') as string).toLowerCase(); // "index" | "login" | "processing" | "preview" ...
 
-    if (user && !inTabs && !inProtectedRoute) {
-      router.replace('/(tabs)');
-    } else if (!user && (inTabs || inProtectedRoute)) {
-      router.replace('/login');
+    const inTabs = root === '(tabs)';
+    const isLogin = leaf === 'login';
+    const inProtected = ['processing', 'preview'].includes(leaf);
+
+    if (user) {
+      if (isLogin) router.replace('/');
+    } else {
+      if (inTabs || inProtected) router.replace('/login');
     }
   }, [user, initializing, segments]);
 
   if (initializing) {
     return (
-      <View style = {{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:'#25292e'}}>
+      <View style={{ flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'#25292e' }}>
         <ActivityIndicator size="large" color="#fff" />
       </View>
     );
   }
-  
+
   return (
     <Stack
-      screenOptions = {{
-        headerShown: false,
-        gestureEnabled: false, // disable edge-swipe everywhere
-      }}
-      initialRouteName= "(tabs)" // start in tabs by default
+      screenOptions={{ headerShown: false, gestureEnabled: false }}
+      initialRouteName="(tabs)"
     >
-      <Stack.Screen name= "login" />
-      <Stack.Screen name= "(tabs)" />
-      <Stack.Screen name= "processing" />
-      <Stack.Screen name= "preview" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(screens)/login" />
+      <Stack.Screen name="(screens)/processing" />
+      <Stack.Screen name="(screens)/preview" />
     </Stack>
   );
 }
