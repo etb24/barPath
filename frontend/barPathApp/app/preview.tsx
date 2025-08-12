@@ -17,6 +17,7 @@ import {
   collection, doc, setDoc, serverTimestamp
 } from '@react-native-firebase/firestore';
 import { auth, storageDb, db } from '../services/FirebaseConfig';
+import { promotePreview } from '../services/api';
 
 export default function PreviewScreen() {
   const {
@@ -25,8 +26,8 @@ export default function PreviewScreen() {
     liftName = 'Unknown Lift',
   } = useLocalSearchParams<{
     processedUri: string;
-    blobPath:      string;
-    liftName?:     string;
+    blobPath: string;
+    liftName?: string;
   }>();
   const router = useRouter();
   const user   = auth.currentUser!;
@@ -64,31 +65,37 @@ export default function PreviewScreen() {
     }
   };
 
-  // record metadata only—blob stays under {uid}/processed/
   const saveToLibrary = async () => {
     setBusy(true);
     try {
-      const videoId = blobPath.split('/').pop()!;
-      const videosCol = collection(db, 'users', user.uid, 'videos');
-      const videoDoc  = doc(videosCol, videoId);
+      const parts = blobPath.split('/');
+      const filename = parts[parts.length - 1];
+      const videoId = filename.replace(/\.mp4$/i, '');
 
-      // generate thumbnail
+      // make thumbnail
       const { uri: thumbLocalUri } = await VideoThumbnails.getThumbnailAsync(
         processedUri,
         { time: 1000, quality: 0.5 }
       );
+
       const thumbPath = `${user.uid}/thumbs/${videoId}.jpg`;
       const thumbRef  = storageRef(storageDb, thumbPath);
       await putFile(thumbRef, thumbLocalUri);
       const thumbnailUrl = await getDownloadURL(thumbRef);
 
-      // write metadata pointing at the existing processed blob
+      console.log("RN blobPath → function:", blobPath);
+      
+      // promote on server
+      await promotePreview(blobPath);
+
+      // merge metadata into Firestore
+      const videosCol = collection(db, 'users', user.uid, 'videos');
+      const videoDoc  = doc(videosCol, videoId);
       await setDoc(videoDoc, {
-        blobPath,
         thumbnailUrl,
         liftName,
         processedAt: serverTimestamp(),
-      });
+      }, { merge: true });
 
       Alert.alert('Saved', 'Video added to your library.');
       router.replace('/(tabs)');
@@ -98,6 +105,7 @@ export default function PreviewScreen() {
       setBusy(false);
     }
   };
+
 
   // delete the preview blob from Storage
   const discard = async () => {

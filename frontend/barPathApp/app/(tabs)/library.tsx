@@ -4,7 +4,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject, getDownloadURL,} from '../../services/FirebaseConfig';
 import { QueryDocumentSnapshot } from '@firebase/firestore-types';
-import { FirebaseFirestoreTypes, } from '@react-native-firebase/firestore';
+import { FirebaseFirestoreTypes, updateDoc, } from '@react-native-firebase/firestore';
 import firestore from '@react-native-firebase/firestore';
 import PreviewModal from '../components/PreviewModal';
 
@@ -45,36 +45,63 @@ export default function LibraryScreen() {
 
     const unsubscribe = onSnapshot(
       videosQuery,
-      async snapshot => {
-        setLoading(true);
-        try {
-          // convert each Firestore doc to VideoItem with fresh URLs
-          const items: VideoItem[] = await Promise.all(
-            snapshot.docs.map(async (d: QueryDocumentSnapshot<any>) => {
-              const data = d.data();
-              const blobPath = data.blobPath as string;
-              const url = await getDownloadURL(storageRef(storageDb, blobPath));
-              const thumbnailUrl = data.thumbnailUrl as string;
-              return {
-                id:           d.id,
-                blobPath,
-                url,
-                thumbnailUrl,
-                liftName:     data.liftName,
-                processedAt:  data.processedAt,
-              };
-            })
-          );
-          setVideos(items);
-        } catch (err: any) {
-          Alert.alert('Failed to load videos', err.message);
-        } finally {
-          setLoading(false);
+      async (snapshot) => {
+        // avoid spinner on every tiny change
+        setLoading((prev) => prev && videos.length === 0);
+
+        const results = await Promise.allSettled<VideoItem>(
+          snapshot.docs.map(async (d: QueryDocumentSnapshot<any>) => {
+            const data = d.data();
+            const blobPath = String(data.blobPath || '');
+
+            // only fetch URLs under this user's folder
+            if (!blobPath.startsWith(`${user.uid}/`)) {
+              throw new Error(`unauthorized path: ${blobPath}`);
+            }
+
+            const url = await getDownloadURL(storageRef(storageDb, blobPath));
+
+            return {
+              id: d.id,
+              blobPath,
+              url,
+              thumbnailUrl: data.thumbnailUrl ?? '',
+              liftName: data.liftName ?? 'Untitled',
+              processedAt: data.processedAt,
+            } as VideoItem;
+          })
+        );
+
+        const items: VideoItem[] = [];
+        let hadErrors = false;
+
+        results.forEach((r, i) => {
+          if (r.status === 'fulfilled') items.push(r.value);
+          else {
+            hadErrors = true;
+            const badDoc = snapshot.docs[i];
+            console.warn(
+              'getDownloadURL failed',
+              badDoc.id,
+              badDoc.data()?.blobPath,
+              r.reason
+            );
+          }
+        });
+
+        setVideos(items);
+        setLoading(false);
+
+        // alert if nothing could be shown at all
+        if (hadErrors && items.length === 0) {
+          Alert.alert('Some videos couldn’t be loaded', 'Please try again later.');
         }
       },
-      error => {
-        Alert.alert('Error', error.message);
+      (error) => {
+        // query-level errors
+        console.error(error);
         setLoading(false);
+        Alert.alert('Error', error.message);
       }
     );
 
@@ -183,6 +210,8 @@ export default function LibraryScreen() {
                     v.id === item.id ? { ...v, liftName: newName } : v
                   )
                 );
+
+                setSelected(null); // close preview
               } catch (e: any) {
                 Alert.alert("Rename failed", e.message);
               }
@@ -243,9 +272,20 @@ export default function LibraryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {flex:1,backgroundColor:'#25292e'},
-  center: {flex:1,justifyContent:'center',alignItems:'center',backgroundColor:'#25292e'},
-  emptyText: {color:'#aaa',fontSize:16},
+  container: {
+    flex:1,
+    backgroundColor:'#25292e'
+  },
+  center: {
+    flex:1,
+    justifyContent:'center',
+    alignItems:'center',
+    backgroundColor:'#25292e'
+  },
+  emptyText: {
+    color:'#aaa',
+    fontSize:16
+  },
 
   thumbContainer: {
     marginBottom: 16,
@@ -254,7 +294,7 @@ const styles = StyleSheet.create({
   thumb: {
     width: THUMB_SIZE,
     height: THUMB_SIZE * (16 / 9),
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: '#000',
   },
   thumbLabel: {

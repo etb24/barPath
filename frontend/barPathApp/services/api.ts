@@ -5,30 +5,24 @@ import { storageDb } from './FirebaseConfig';
 
 const API_BASE = 'http://localhost:8000';  // fastAPI URL
 
-/**
- * Uploads the picked video to Firebase Storage,
- * tells FastAPI to process it from the bucket,
- * then downloads the signed URL result into cacheDirectory.
- */
 export async function processVideo(inputUri: string): Promise<{
   localUri: string;
   blobPath: string;
 }> {
   // get user, token, timestamp
-  const auth   = getAuth();
-  const user   = auth.currentUser!;
-  const idToken= await user.getIdToken();
-  const ts     = Date.now().toString();
+  const auth = getAuth();
+  const user = auth.currentUser!;
+  const idToken = await user.getIdToken();
+  const ts = Date.now().toString();
 
   // upload raw to `${uid}/raw/${ts}.mp4`
   const rawPath = `${user.uid}/raw/${ts}.mp4`;
   await putFile(storageRef(storageDb, rawPath), inputUri);
 
-  // call FastAPI
   const res = await fetch(`${API_BASE}/process_from_bucket`, {
     method:  'POST',
     headers: {
-      'Content-Type':  'application/json',
+      'Content-Type': 'application/json',
       'Authorization': `Bearer ${idToken}`,
     },
     body: JSON.stringify({ blob_path: rawPath }),
@@ -55,3 +49,26 @@ export async function processVideo(inputUri: string): Promise<{
   };
 }
 
+export async function promotePreview(previewPath: string): Promise<{
+  blobPath: string;
+  status: 'saved';
+}> {
+  const user = getAuth().currentUser!;
+  const idToken = await user.getIdToken();
+
+  const res = await fetch(`${API_BASE}/promote_preview`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ preview_path: previewPath }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
