@@ -8,7 +8,7 @@ import { FirebaseFirestoreTypes, updateDoc, } from '@react-native-firebase/fires
 import firestore from '@react-native-firebase/firestore';
 import PreviewModal from '../components/PreviewModal';
 
-// TODO : FIX FIRESTORE DEPRECATIONS ON NAME CHANGE, FIX RENAME STATE CHANGE, SIGN OUT FIRESTORE ERROR, UPDATE MODAL
+// TODO : FIX FIRESTORE DEPRECATIONS, FIX RENAME STATE CHANGE, UPDATE MODAL
 
 interface VideoItem {
   id: string;
@@ -24,16 +24,22 @@ const { width } = Dimensions.get('window');
 const THUMB_SIZE = (width - 48) / 2;
 
 export default function LibraryScreen() {
-  const user = auth.currentUser!;
-  const [videos, setVideos]   = useState<VideoItem[]>([]);
+  const [user, setUser] = useState<typeof auth.currentUser | null>(auth.currentUser);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [selected, setSelected] = useState<VideoItem|null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+  const stop = auth.onAuthStateChanged(setUser);
+  return stop;
+  }, []);
+
+  useEffect(() => {
     if (!user) {
       setVideos([]);
+      setSelected(null);
       setLoading(false);
       return;
     }
@@ -42,7 +48,7 @@ export default function LibraryScreen() {
       collection(db, 'users', user.uid, 'videos'),
       orderBy('processedAt', 'desc')
     );
-
+    
     const unsubscribe = onSnapshot(
       videosQuery,
       async (snapshot) => {
@@ -98,6 +104,9 @@ export default function LibraryScreen() {
         }
       },
       (error) => {
+        const signedOut = !auth.currentUser;
+        // @ts-expect-error - code might not exist on generic error
+        if (signedOut && error?.code === 'permission-denied') return;
         // query-level errors
         console.error(error);
         setLoading(false);
@@ -106,7 +115,7 @@ export default function LibraryScreen() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid]);
 
   async function handleDelete(item: VideoItem, confirmed = false) {
 
@@ -124,6 +133,9 @@ export default function LibraryScreen() {
 
     setBusy(true);
     try {
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
       // delete the MP4 from storage
       const vidRef = storageRef(storageDb, item.blobPath);
       await deleteObject(vidRef).catch((e) => {
@@ -197,6 +209,9 @@ export default function LibraryScreen() {
               if (typeof newName !== 'string' || !newName.trim()) return;
               try {
                 // update Firestore (deprecated)
+                if (!user) {
+                  throw new Error('User not authenticated');
+                }
                 await firestore()
                   .collection('users')
                   .doc(user.uid)
