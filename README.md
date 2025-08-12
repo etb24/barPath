@@ -70,7 +70,7 @@ As a former competitive athlete and fitness enthusiast with a history of injurie
 
 ## Planned Improvements
 
-- Add background job orchestration (Celery, Firebase Functions)
+- Add background job orchestration with Firebase functions
 - Implement Docker-based deployment pipeline
 
 ## Impact
