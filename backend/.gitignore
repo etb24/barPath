@@ -2,7 +2,6 @@
 /models
 /credentials
 /.venv
-/processed
-/uploads
 *.mov
 *.mp4
+__pycache__/
