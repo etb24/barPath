@@ -5,14 +5,14 @@ export default function TabLayout() {
   return (
   <Tabs
   screenOptions={{
-    tabBarActiveTintColor: '#ffd33d',
+    tabBarActiveTintColor: '#C2FD4E',
     headerStyle: {
-      backgroundColor: '#25292e',
+      backgroundColor: '#121212',
     },
     headerShadowVisible: false,
     headerTintColor: '#fff',
     tabBarStyle: {
-      backgroundColor: '#25292e',
+      backgroundColor: '#121212',
     },
   }}
 >
@@ -25,6 +25,17 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="upload"
+        options={{
+          title: 'Upload',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'cloud-upload' : 'cloud-upload-outline'} color={color} size={24} />
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="library"
         options={{

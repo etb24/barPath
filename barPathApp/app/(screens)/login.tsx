@@ -46,7 +46,7 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: '#121212',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   title: {
-    color: '#ffd33d',
+    color: '#C2FD4E',
     fontSize: 28,
     fontWeight: '700',
     marginBottom: 12,

@@ -152,7 +152,7 @@ export default function PreviewScreen() {
           disabled={busy}
         >
           {busy
-            ? <ActivityIndicator color="#25292e" />
+            ? <ActivityIndicator color="#121212" />
             : <Text style={styles.saveButtonText}>Save to Library</Text>
           }
         </TouchableOpacity>
@@ -174,7 +174,7 @@ export default function PreviewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: '#121212',
     paddingTop: 75,
     padding: 16,
     alignItems: 'center',
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 16,
     borderWidth: 4,
-    borderColor: '#ffd33d',
+    borderColor: '#C2FD4E',
     overflow: 'hidden',
     backgroundColor:'#000',
     marginBottom: 20,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButton: {
-    backgroundColor: '#ffd33d',
+    backgroundColor: '#C2FD4E',
     width: '48%',
   },
   discardButton: {
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     width: '40%',
   },
   saveButtonText: {
-    color: '#25292e',
+    color: '#121212',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -20,7 +20,7 @@ export default function libraryModal({
   onDelete: () => void;
   onRename: () => void;
 }) {
-  // ← EARLY RETURN: nothing will render (no stray boolean) unless both are provided
+  // EARLY RETURN: nothing will render (no stray boolean) unless both are provided
   if (!visible || !item) {
     return null;
   }
@@ -115,13 +115,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   controlButton: {
-    backgroundColor: '#ffd33d',
+    backgroundColor: '#C2FD4E',
     padding: 14,
     marginHorizontal: 20,
     borderRadius: 8,
   },
   deleteButton: {
-    backgroundColor: '#ff4444',
+    backgroundColor: '#8A5BFE', // #ff4444 8A5BFE
   },
   closeButton: {
     backgroundColor: 'white',

@@ -25,7 +25,7 @@ export default function ProcessingScreen() {
 
   return (
     <View style = {styles.container}>
-      <ActivityIndicator size="large" color="#ffd33d" />
+      <ActivityIndicator size="large" color="#C2FD4E" />
     </View>
   );
 }
@@ -33,7 +33,7 @@ export default function ProcessingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
