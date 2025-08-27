@@ -1,6 +1,7 @@
 .env
 /models
 /credentials
+/test-videos
 /.venv
 *.mov
 *.mp4
