@@ -384,12 +384,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212',
   },
   header: { 
-    paddingTop: 8, 
+    paddingTop: 64, 
     paddingHorizontal: 16, 
     paddingBottom: 4 
   },
   brandPill: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     backgroundColor: '#101010',
     borderColor: '#242424',
     borderWidth: StyleSheet.hairlineWidth,
