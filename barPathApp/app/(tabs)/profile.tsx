@@ -173,6 +173,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 10,
     letterSpacing: 0.2,
+    paddingLeft: 12,
   },
 
   cardList: {

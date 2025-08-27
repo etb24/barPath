@@ -140,7 +140,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF', 
     fontSize: 16, 
     fontWeight: '700', 
-    letterSpacing: 0.2 
+    letterSpacing: 0.2,
+    paddingLeft: 12,
   },
 
   row: { 
