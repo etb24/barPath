@@ -30,11 +30,11 @@ export default function PreviewScreen() {
     liftName?: string;
   }>();
   const router = useRouter();
-  const user   = auth.currentUser!;
+  const user = auth.currentUser!;
 
   const [hasPermission, setHasPermission] = useState(false);
-  const [busy, setBusy]                   = useState(false);
-  const [ratio, setRatio]                 = useState(16/9);
+  const [busy, setBusy] = useState(false);
+  const [ratio, setRatio] = useState(16/9);
 
   // ask for camera‐roll permission
   useEffect(() => {
@@ -90,7 +90,7 @@ export default function PreviewScreen() {
 
       // merge metadata into Firestore
       const videosCol = collection(db, 'users', user.uid, 'videos');
-      const videoDoc  = doc(videosCol, videoId);
+      const videoDoc = doc(videosCol, videoId);
       await setDoc(videoDoc, {
         thumbnailUrl,
         liftName,
