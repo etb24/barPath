@@ -1,17 +1,19 @@
-import os
+import os, json
 import uuid
 from io import BytesIO
 from datetime import timedelta
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, Body
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, HTTPException, Depends, Body, Request
 
-from firebase_admin import auth as fb_auth, firestore as fb_fs, storage as fb_storage
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import Response
+
+from firebase_admin import firestore as fb_fs
 from app.firebase_config import bucket
 from app.barbell_tracker import BarbellPathTracker
 
-from google.cloud.exceptions import NotFound
+from app.dependencies.auth import get_current_user
 
 load_dotenv()
 
@@ -21,6 +23,24 @@ SIGN_URL_EXP = timedelta(hours = 1)
 
 app = FastAPI(title=API_TITLE)
 
+ALLOWED_ORIGINS = json.loads(os.getenv("ALLOWED_ORIGINS", '["http://localhost:3000","http://localhost:19006"]'))
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[ALLOWED_ORIGINS],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    resp: Response = await call_next(request)
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Permissions-Policy"] = "camera=(), microphone=()"
+    return resp
+
 # initialize tracker
 tracker = BarbellPathTracker(
     model_path = MODEL_PATH,
@@ -28,30 +48,15 @@ tracker = BarbellPathTracker(
     max_path_length = 1000
 )
 
-# security scheme for “Authorization: Bearer <token>”
-bearer_scheme = HTTPBearer()
-
-async def get_current_user_id(
-    creds: HTTPAuthorizationCredentials = Depends(bearer_scheme)
-) -> str:
-    # verifies the Firebase JWT and returns uuid
-    token = creds.credentials
-    try:
-        decoded = fb_auth.verify_id_token(token)
-        return decoded["uid"]
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
 @app.get("/")
-async def health_check():
+async def health():
     return {"message": "Barbell Tracker API is up and running"}
 
 
 @app.post("/process_from_bucket")
 async def process_from_bucket(
     blob_path: str = Body(..., embed=True),
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(get_current_user),
 ):
     # download raw bytes from Storage
     blob = bucket.blob(blob_path)
@@ -90,7 +95,7 @@ async def process_from_bucket(
 @app.post("/promote_preview")
 async def promote_preview(
     preview_path: str = Body(... , embed=True),
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(get_current_user),
 ):
     if not preview_path or not preview_path.startswith(f"{user_id}/previews/"):
         raise HTTPException(status_code=403, detail="Invalid preview path for this user")

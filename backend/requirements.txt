@@ -12,7 +12,7 @@ google-api-core==2.19.2
 
 # CV / ML
 numpy==1.26.4
-opencv-python-headless==4.10.0.84
-ultralytics==8.2.103
-torch==2.3.1
-torchvision==0.18.1
+ultralytics==8.3.190
+torch>=2.3
+torchvision>=0.18
+opencv-python-headless>=4.8
