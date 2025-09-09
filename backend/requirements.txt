@@ -8,7 +8,7 @@ python-dotenv==1.0.1
 # Firebase
 firebase-admin==6.5.0
 google-cloud-storage==2.18.2
-google-api-core==2.19.2
+google-api-core
 
 # CV / ML
 numpy==1.26.4

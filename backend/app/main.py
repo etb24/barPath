@@ -18,7 +18,7 @@ from app.dependencies.auth import get_current_user
 load_dotenv()
 
 API_TITLE  = "Barbell Tracker API"
-MODEL_PATH = os.getenv("YOLO_MODEL")
+MODEL_PATH = os.getenv("MODEL_PATH")
 SIGN_URL_EXP = timedelta(hours = 1)
 
 app = FastAPI(title=API_TITLE)
@@ -48,9 +48,9 @@ tracker = BarbellPathTracker(
     max_path_length = 1000
 )
 
-@app.get("/")
+@app.get("/health")
 async def health():
-    return {"message": "Barbell Tracker API is up and running"}
+    return {"ok" : True}
 
 
 @app.post("/process_from_bucket")
