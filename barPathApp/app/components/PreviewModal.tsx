@@ -41,6 +41,7 @@ export default function libraryModal({
             useNativeControls
             resizeMode = {ResizeMode.CONTAIN}
             shouldPlay
+            isLooping
           />
 
           <View style = {styles.header}>
