@@ -75,7 +75,7 @@ export default function libraryModal({
               onPress = {onClose}
               disabled = {busy}
             >
-              <Ionicons name = "close" size={24} color="#black" />
+              <Ionicons name = "close" size={24} color="#000" />
             </TouchableOpacity>
           
           </View>
