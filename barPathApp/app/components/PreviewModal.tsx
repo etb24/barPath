@@ -1,7 +1,9 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, SafeAreaView, } from 'react-native';
+import { Modal, View, TouchableOpacity, ActivityIndicator, StyleSheet, SafeAreaView, } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import Typography from './ui/Typography';
+import { colors, spacing, radii } from '../styles/theme';
 
 export default function libraryModal({
   visible,
@@ -44,10 +46,11 @@ export default function libraryModal({
             isLooping
           />
 
-          <View style = {styles.header}>
+          <View style={styles.header}>
             <TouchableOpacity onPress={onRename}>
-              <Text style = {styles.title}>{item.liftName}</Text>
-              <View style = {{ width: 28 }} />
+              <Typography variant="subtitle" weight="bold" style={styles.title}>
+                {item.liftName}
+              </Typography>
             </TouchableOpacity>
           </View>
 
@@ -58,8 +61,8 @@ export default function libraryModal({
               disabled = {busy}
             >
               {busy
-                ? <ActivityIndicator color="#fff" />
-                : <Ionicons name = "download" size = {24} color="#fff" />}
+                ? <ActivityIndicator color={colors.textPrimary} />
+                : <Ionicons name = "download" size = {24} color={colors.textPrimary} />}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -67,7 +70,7 @@ export default function libraryModal({
               onPress = {onDelete}
               disabled = {busy}
             >
-              <Ionicons name = "trash" size={24} color="#fff" />
+              <Ionicons name = "trash" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -75,7 +78,7 @@ export default function libraryModal({
               onPress = {onClose}
               disabled = {busy}
             >
-              <Ionicons name = "close" size={24} color="#000" />
+              <Ionicons name = "close" size={24} color={colors.background} />
             </TouchableOpacity>
           
           </View>
@@ -88,43 +91,41 @@ export default function libraryModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: colors.overlay,
   },
   container: {
     flex: 1,
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 6,
+    marginBottom: spacing.sm,
     alignItems: 'center'
   },
   title: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    color: colors.textPrimary,
   },
   video: {
     flex: 1,
-    marginHorizontal: 16,
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    borderRadius: radii.lg,
     overflow: 'hidden',
     backgroundColor: '#000',
   },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
+    gap: spacing.lg,
   },
   controlButton: {
-    backgroundColor: '#C2FD4E',
-    padding: 14,
-    marginHorizontal: 20,
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    padding: spacing.md,
+    borderRadius: radii.md,
   },
   deleteButton: {
-    backgroundColor: '#8A5BFE', // #ff4444 8A5BFE
+    backgroundColor: colors.destructive,
   },
   closeButton: {
-    backgroundColor: 'white',
+    backgroundColor: colors.textPrimary,
   }
 });

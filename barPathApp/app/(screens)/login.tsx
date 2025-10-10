@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, Image, ActivityIndicator, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Image, ActivityIndicator, Platform } from 'react-native';
 import { signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth';
 import { GoogleSignin, GoogleSigninButton, statusCodes } from '@react-native-google-signin/google-signin';
 import { auth } from '../../services/FirebaseConfig';
+import Screen from '../components/ui/Screen';
+import Card from '../components/ui/Card';
+import Typography from '../components/ui/Typography';
+import { colors, spacing, radii } from '../styles/theme';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -36,60 +40,72 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-
-      <View style={styles.header}>
-        <View style={styles.logoBadge}>
-          <Image
-            source={LOGO}
-            style={styles.logoImage}
-            resizeMode="contain"
-            accessible
-            accessibilityLabel="BarPath logo"
-          />
+    <Screen>
+      <View style={styles.container}>
+        <View style={styles.hero}>
+          <Typography variant="title" weight="black" color={colors.accent} style={styles.brand}>
+            barPath.io
+          </Typography>
+          <View style={styles.logoBadge}>
+            <Image
+              source={LOGO}
+              style={styles.logoImage}
+              resizeMode="contain"
+              accessible
+              accessibilityLabel="BarPath logo"
+            />
+          </View>
+          <Typography variant="hero" weight="black" style={styles.title}>
+            Track smarter, lift safer
+          </Typography>
+          <Typography variant="body" color={colors.textSecondary} style={styles.subtitle}>
+            Sign in to sync your bar path analyses and view your training archive on any device.
+          </Typography>
         </View>
-        <Text style={styles.title}>barPath.io</Text>
-        <Text style={styles.subtitle}>Track your lifts. See your progress.</Text>
+
+        <Card style={styles.card}>
+          <GoogleSigninButton
+            style={styles.googleButton}
+            size={GoogleSigninButton.Size.Wide}
+            color={GoogleSigninButton.Color.Dark}
+            onPress={onGoogleButtonPress}
+            disabled={loading}
+            accessibilityLabel="Sign in with Google"
+            testID="google-signin-button"
+          />
+
+          {loading && <ActivityIndicator style={{ marginTop: spacing.md }} color={colors.accent} />}
+
+          <Typography variant="caption" color={colors.textMuted} style={styles.legal}>
+            By continuing you agree to our{' '}
+            <Typography variant="caption" color={colors.textSecondary}>Terms</Typography>
+            {' & '}
+            <Typography variant="caption" color={colors.textSecondary}>Privacy</Typography>.
+          </Typography>
+        </Card>
+
+        <Typography variant="caption" color={colors.textMuted} style={styles.footer}>
+          Made for lifters • v1.0
+        </Typography>
       </View>
-
-      <View style={styles.card}>
-
-        <GoogleSigninButton
-          style={styles.googleButton}
-          size={GoogleSigninButton.Size.Wide}
-          color={GoogleSigninButton.Color.Dark}
-          onPress={onGoogleButtonPress}
-          disabled={loading}
-          accessibilityLabel="Sign in with Google"
-          testID="google-signin-button"
-        />
-
-        {loading && <ActivityIndicator style={{ marginTop: 16 }} />}
-
-        {/* TODO: Add Terms & Privacy links*/} 
-        <Text style={styles.legal}>
-          By continuing you agree to our
-          <Text style={styles.link}> Terms</Text> &
-          <Text style={styles.link}> Privacy</Text>.
-        </Text>
-      </View>
-
-      <Text style={styles.footer}>Made for lifters • v1.0</Text>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B0B',
-    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
     justifyContent: 'center',
-    padding: 24,
+    gap: spacing.lg,
   },
-  header: {
+  hero: {
     alignItems: 'center',
-    marginBottom: 16,
+    gap: spacing.md,
+  },
+  brand: {
+    letterSpacing: 1,
   },
   logoBadge: {
     width: 72,
@@ -98,9 +114,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-    backgroundColor: '#0B0B0B',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   // new image style
   logoImage: {
@@ -108,28 +124,18 @@ const styles = StyleSheet.create({
     height: 40,
   },
   title: {
-    color: '#C2FD4E',
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    textAlign: 'center',
   },
   subtitle: {
-    color: '#A3A3A3',
-    fontSize: 15,
-    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   card: {
     width: '100%',
-    padding: 20,
-    backgroundColor: '#0B0B0B',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+    alignItems: 'center',
   },
   googleButton: {
     width: '100%',
@@ -139,18 +145,9 @@ const styles = StyleSheet.create({
     maxWidth: 240,
   },
   legal: {
-    color: '#A3A3A3',
-    fontSize: 12,
     textAlign: 'center',
-    marginTop: 14,
-  },
-  link: {
-    color: '#EDEDED',
   },
   footer: {
-    position: 'absolute',
-    bottom: 18,
-    color: '#A3A3A3',
-    fontSize: 12,
+    textAlign: 'center',
   },
 });
