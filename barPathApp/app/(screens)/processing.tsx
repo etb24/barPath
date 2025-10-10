@@ -2,6 +2,9 @@ import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { processVideo } from '../../services/api';
+import Screen from '../components/ui/Screen';
+import Typography from '../components/ui/Typography';
+import { colors, spacing } from '../styles/theme';
 
 export default function ProcessingScreen() {
   const { inputUri } = useLocalSearchParams<{ inputUri: string }>();
@@ -24,17 +27,33 @@ export default function ProcessingScreen() {
   }, []);
 
   return (
-    <View style = {styles.container}>
-      <ActivityIndicator size="large" color="#C2FD4E" />
-    </View>
+    <Screen>
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Typography variant="subtitle" weight="bold" style={styles.title}>
+          Processing your lift…
+        </Typography>
+        <Typography variant="body" color={colors.textSecondary} style={styles.copy}>
+          We’re mapping the bar path and rendering metrics. This should finish shortly.
+        </Typography>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  title: {
+    textAlign: 'center',
+  },
+  copy: {
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

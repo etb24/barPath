@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, View, Text, StyleSheet, Pressable, StatusBar, Platform, LayoutAnimation, UIManager } from 'react-native';
+import { ScrollView, View, StyleSheet, Platform, LayoutAnimation, UIManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getAuth } from '@react-native-firebase/auth';
 import QuickAction from '../components/QuickAction';
 import Accordion from '../components/Accordion';
 import Bullet from '../components/Bullet';
+import Screen from '../components/ui/Screen';
+import Card from '../components/ui/Card';
+import Pill from '../components/ui/Pill';
+import Typography from '../components/ui/Typography';
+import { colors, spacing, radii } from '../styles/theme';
 
 // enable layout animation on Android (for accordion)
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -18,165 +23,158 @@ export default function HomeScreen() {
 
   const goToUpload  = () => router.push('/upload');
   const goToLibrary = () => router.push('/library');
+  const goToProfile = () => router.push('/profile'); // change this route for future a patch notes
+
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <Screen>
       <ScrollView
         style={{ flex: 1 }}
+        contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior="automatic"
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>barPath.io</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Track your lifts with AI</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.aboutCard}>
-            <Text style={styles.aboutHeadline}>
-              Get stronger, safely with <Text style={styles.brand}>barPath.io</Text>
-            </Text>
-            <Text style={styles.aboutText}>
-              Track your lifts and improve your form using cutting-edge AI technology. 
-              Visualize your bar path, monitor progress, and lift with confidence.
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.row}>
+        <View style={styles.hero}>
+          <Pill label="barPath.io" tone="accent" uppercase />
+          <Typography variant="hero" weight="black" style={styles.heroTitle}>
+            Track a sharper bar path.
+          </Typography>
+          <Typography variant="body" color={colors.textSecondary} style={styles.heroCopy}>
+            Analyze every lift with AI overlays, actionable cues, and a clean history of your best sets.
+          </Typography>
+          <View style={styles.heroActions}>
             <QuickAction
               title="Upload a lift"
               subtitle="Pick a video to analyze"
               icon="upload"
               onPress={goToUpload}
             />
-            <QuickAction
-              title="Your library"
-              subtitle="Manage saved videos"
-              icon="folder"
-              onPress={goToLibrary}
-            />
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Instructions</Text>
+        <Card style={styles.quickCard}>
+          <Typography variant="subtitle" weight="bold" color={colors.textSecondary}>
+            Jump back in
+          </Typography>
+          <View style={styles.quickRow}>
+            <QuickAction
+              title="Your library"
+              subtitle="Review saved videos"
+              icon="folder"
+              onPress={goToLibrary}
+            />
+            <QuickAction
+              title="What’s new"
+              subtitle="See latest updates"
+              icon="zap"
+              onPress={goToProfile} // replace with actual "what's new" route when available
+            />
+          </View>
+        </Card>
 
-          <Accordion title="How to get the best results" defaultOpen>
-            <Bullet text="Record your set from the side if possible. Keep the camera steady." />
-            <Bullet text="Keep the barbell and plates fully in frame for the entire set." />
-            <Bullet text="Use good lighting; avoid strong backlight and motion blur." />
-            <Bullet text="Open the Upload tab and pick your video (under 2 minutes works best)." />
-            <Bullet text="We’ll process it and show bar path + metrics; review in your Library." />
+        <Card tone="secondary" style={styles.infoCard}>
+          <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>
+            Nail the bar path every time
+          </Typography>
+          <Typography variant="body" color={colors.textMuted} style={styles.sectionBody}>
+            Follow these quick tips to get clean, high-contrast footage so our tracker can stay on the barbell.
+          </Typography>
+
+          <Accordion
+            title="How to get the best results"
+            defaultOpen
+            containerStyle={styles.accordion}
+            headerStyle={styles.accordionHeader}
+            titleStyle={styles.accordionTitle}
+            chevronStyle={styles.accordionChevron}
+            bodyStyle={styles.accordionBody}
+          >
+            <Bullet text="Record from the side with the lifter centered and the camera steady." />
+            <Bullet text="Keep the barbell, plates, and feet fully in frame for the complete set." />
+            <Bullet text="Use bright, even lighting and avoid motion blur or heavy compression." />
+            <Bullet text="Trim your clip close to the set to speed up upload and processing." />
+            <Bullet text="Review the preview and save to your library to track progress over time." />
           </Accordion>
 
-          <Accordion title="Tips & Troubleshooting">
-            <Bullet text="If tracking looks off, try a different angle or clear clutter near the bar." />
-            <Bullet text="Higher FPS (60) helps; overly compressed clips can reduce accuracy." />
-            <Bullet text="Trim the clip close to the set to speed up processing." />
-            <Bullet text="If the picker doesn’t open, grant photo/video permissions." />
-            <Bullet text="Privacy: videos stay tied to your account; you can delete them anytime." />
+          <Accordion
+            title="Troubleshooting & tips"
+            containerStyle={styles.accordion}
+            headerStyle={styles.accordionHeader}
+            titleStyle={styles.accordionTitle}
+            chevronStyle={styles.accordionChevron}
+            bodyStyle={styles.accordionBody}
+          >
+            <Bullet text="If tracking slips, try a higher angle or remove clutter around the bar." />
+            <Bullet text="Higher frame rates (60 fps) give cleaner tracking on fast pulls." />
+            <Bullet text="Grant photo/video permissions so the uploader can access your library." />
+            <Bullet text="Videos stay private to your account until you delete them." />
           </Accordion>
-        </View>
-
+        </Card>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#121212' 
+  scroll: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
   },
-
-  header: { 
-    paddingTop: 32, 
-    paddingBottom: 6, 
-    alignItems: 'center' 
-  },
-
-  badge: {
-    backgroundColor: '#1A1A1A',
-    borderColor: '#242424',
+  hero: {
+    borderRadius: radii.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
+    backgroundColor: colors.surfaceHighlight,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 10,
+    borderColor: colors.border,
   },
-
-  badgeText: { 
-    color: '#cfcfcf', 
-    fontSize: 12, 
-    letterSpacing: 0.3 
+  heroTitle: {
+    marginTop: spacing.md,
   },
-
-  title: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#C2FD4E',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-    textAlign: 'center',
+  heroCopy: {
+    marginTop: spacing.sm,
+    lineHeight: 22,
   },
-
-  subtitle: {
+  heroActions: {
+    marginTop: spacing.lg,
+  },
+  quickCard: {
+    marginBottom: spacing.xl,
+    gap: spacing.lg,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    flexWrap: 'wrap',
+  },
+  infoCard: {
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  sectionHeading: {
+    color: colors.textPrimary,
+  },
+  sectionBody: {
+    lineHeight: 22,
+  },
+  accordion: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    marginTop: spacing.md,
+  },
+  accordionHeader: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  accordionBody: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  accordionTitle: {
+    color: colors.textPrimary,
+    fontWeight: '700',
     fontSize: 15,
-    color: '#9A9A9A',
-    textAlign: 'center',
   },
-
-  section: { 
-    marginTop: 18 
+  accordionChevron: {
+    color: colors.textMuted,
   },
-
-  sectionTitle: { 
-    color: '#FFFFFF', 
-    fontSize: 16, 
-    fontWeight: '700', 
-    letterSpacing: 0.2,
-    paddingLeft: 12,
-  },
-
-  row: { 
-    flexDirection: 'row', 
-    gap: 12, 
-    marginTop: 10 
-  },
-
-  aboutCard: {
-    backgroundColor: '#161616',
-    borderColor: '#242424',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    padding: 16,
-    marginTop: 8,
-  },
-
-  aboutHeadline: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-
-  brand: {
-    color: '#C2FD4E',
-    fontWeight: '900',
-  },
-
-  aboutText: {
-    color: '#CFCFCF',
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-
 });

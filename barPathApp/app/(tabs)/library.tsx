@@ -2,12 +2,18 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, Alert, Dimensions, Image, ActivityIndicator, Platform, Pressable, ActionSheetIOS, } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
+import { useRouter } from 'expo-router';
 import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject, getDownloadURL, } from '../../services/FirebaseConfig';
 import { QueryDocumentSnapshot } from '@firebase/firestore-types';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import firestore from '@react-native-firebase/firestore';
 import { Feather } from '@expo/vector-icons';
 import PreviewModal from '../components/PreviewModal';
+import Screen from '../components/ui/Screen';
+import Card from '../components/ui/Card';
+import Pill from '../components/ui/Pill';
+import Typography from '../components/ui/Typography';
+import { colors, spacing, radii } from '../styles/theme';
 
 interface VideoItem {
   id: string;
@@ -19,9 +25,12 @@ interface VideoItem {
 }
 
 const { width } = Dimensions.get('window');
-const THUMB_SIZE = (width - 48) / 2; // 16px padding + space-between
+const HORIZONTAL_PADDING = 16;
+const GUTTER = 16;
+const THUMB_SIZE = (width - (HORIZONTAL_PADDING * 2) - GUTTER) / 2;
 
 export default function LibraryScreen() {
+  const router = useRouter();
   const user = auth.currentUser;
 
   const [videos, setVideos] = useState<VideoItem[]>([]);
@@ -300,167 +309,182 @@ export default function LibraryScreen() {
     </Pressable>
   );
 
-  if (loading)
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#C2FD4E" size="large" />
-      </View>
-    );
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.accent} size="large" />
+          <Typography variant="body" color={colors.textSecondary} style={{ marginTop: spacing.sm }}>
+            Fetching your recent lifts…
+          </Typography>
+        </View>
+      );
+    }
 
-  if (videos.length === 0)
+    if (videos.length === 0) {
+      return (
+        <View style={styles.center}>
+          <Card tone="secondary" style={styles.emptyCard}>
+            <Pill label="Library" tone="accent" />
+            <Typography variant="title" weight="black">
+              No saved videos yet
+            </Typography>
+            <Typography variant="body" color={colors.textSecondary} style={styles.emptyCopy}>
+              Upload a lift to analyze it with AI overlays and see it saved here for review.
+            </Typography>
+            <Pressable
+              onPress={() => router.push('/upload')}
+              style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+            >
+              <Typography variant="subtitle" weight="bold" color={colors.background}>
+                Upload a lift
+              </Typography>
+            </Pressable>
+          </Card>
+        </View>
+      );
+    }
+
     return (
-      <View style={styles.center}>
-        <Text style={styles.emptyTitle}>No saved videos</Text>
-        <Text style={styles.emptyText}>Upload a lift to see it here.</Text>
-      </View>
+      <FlatList
+        data={sortedVideos}
+        keyExtractor={(v) => v.id}
+        renderItem={renderThumb}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        removeClippedSubviews
+        initialNumToRender={8}
+        windowSize={7}
+      />
     );
+  };
 
   return (
-    <View style={styles.container}>
-      {/* header / toolbar */}
-      <View style={styles.header}>
-        <View style={styles.brandPill}>
-          <Text style={styles.brandText}>barPath.io</Text>
-        </View>
-        <Text style={styles.title}>Your Library</Text>
-
-        <View style={styles.toolbar}>
+    <Screen>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Pill label="Library" tone="accent" uppercase />
+          <Typography variant="hero" weight="black" style={styles.title}>
+            Your analyzed lifts
+          </Typography>
+          <Typography variant="body" color={colors.textSecondary} style={styles.subtitle}>
+            Sort and revisit saved sets, export clips, and keep your training archive organized.
+          </Typography>
           <View style={styles.sortChips}>
             <Pressable
               onPress={() => setSort('recent')}
               style={[styles.chip, sort === 'recent' && styles.chipActive]}
             >
-              <Text
-                style={[styles.chipText, sort === 'recent' && styles.chipTextActive]}
-              >
+              <Typography variant="caption" color={sort === 'recent' ? colors.background : colors.textMuted} weight="bold">
                 Recent
-              </Text>
+              </Typography>
             </Pressable>
             <Pressable
               onPress={() => setSort('name')}
               style={[styles.chip, sort === 'name' && styles.chipActive]}
             >
-              <Text style={[styles.chipText, sort === 'name' && styles.chipTextActive]}>
+              <Typography variant="caption" color={sort === 'name' ? colors.background : colors.textMuted} weight="bold">
                 Name
-              </Text>
+              </Typography>
             </Pressable>
           </View>
         </View>
+
+        {renderContent()}
+
+        {selected && (
+          <PreviewModal
+            visible
+            item={selected}
+            busy={busy}
+            onClose={() => setSelected(null)}
+            onSave={() => handleSave(selected)}
+            onDelete={() => handleDelete(selected)}
+            onRename={() => openRename(selected)}
+          />
+        )}
       </View>
-
-      <FlatList
-        data = {sortedVideos}
-        keyExtractor = {(v) => v.id}
-        renderItem = {renderThumb}
-        numColumns = {2}
-        columnWrapperStyle = {{ justifyContent: 'space-between' }}
-        contentContainerStyle = {{ padding: 16, paddingBottom: 24 }}
-        showsVerticalScrollIndicator
-        refreshing = {refreshing}
-        onRefresh = {onRefresh}
-        removeClippedSubviews
-        initialNumToRender = {8}
-        windowSize={7}
-      />
-
-      {selected && (
-        <PreviewModal
-          visible
-          item={selected}
-          busy={busy}
-          onClose={() => setSelected(null)}
-          onSave={() => handleSave(selected)}
-          onDelete={() => handleDelete(selected)}
-          onRename={() => openRename(selected)}
-        />
-      )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    paddingHorizontal: HORIZONTAL_PADDING,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+    backgroundColor: colors.background,
   },
-  header: { 
-    paddingTop: 64, 
-    paddingHorizontal: 16, 
-    paddingBottom: 4 
+  header: {
+    gap: spacing.md,
+    marginBottom: spacing.xl,
   },
-  brandPill: {
-    alignSelf: 'center',
-    backgroundColor: '#101010',
-    borderColor: '#242424',
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginBottom: 8,
+  title: {
+    color: colors.textPrimary,
   },
-  brandText: { 
-    color: '#CFCFCF', 
-    fontSize: 12, 
-    letterSpacing: 0.3 
+  subtitle: {
+    lineHeight: 22,
   },
-  title: { 
-    color: '#fff', 
-    fontSize: 22, 
-    fontWeight: '800' 
-  },
-  toolbar: {
-    marginTop: 10,
+  sortChips: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sortChips: { 
-    flexDirection: 'row' 
+    gap: spacing.md,
   },
   chip: {
-    backgroundColor: '#191919',
-    borderColor: '#2A2A2A',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginRight: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
   },
-  chipActive: { 
-    backgroundColor: '#1F1F1F', 
-    borderColor: '#3A3A3A' 
-  },
-  chipText: { 
-    color: '#AFAFAF', 
-    fontSize: 12, 
-    fontWeight: '700' 
-  },
-  chipTextActive: { 
-    color: '#C2FD4E' 
+  chipActive: {
+    backgroundColor: colors.accent,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#121212',
+    paddingHorizontal: spacing.xl,
   },
-  emptyTitle: { 
-    color: '#fff', 
-    fontSize: 16, 
-    fontWeight: '800', 
-    marginBottom: 6 
+  emptyCard: {
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
   },
-  emptyText: { 
-    color: '#aaa', 
-    fontSize: 14
-   },
+  emptyCopy: {
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  cta: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  ctaPressed: {
+    transform: [{ scale: 0.97 }],
+  },
+  listContent: {
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: 0,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: GUTTER,
+  },
   card: {
     width: THUMB_SIZE,
-    marginBottom: 16,
-    borderRadius: 12,
+    marginBottom: 0,
+    borderRadius: radii.md,
     overflow: 'hidden',
     backgroundColor: '#000',
-    borderColor: '#242424',
+    borderColor: colors.border,
     borderWidth: StyleSheet.hairlineWidth,
     ...Platform.select({
       ios: {
@@ -489,19 +513,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   name: { 
-    color: '#fff', 
+    color: colors.textPrimary, 
     fontSize: 13.5, 
     fontWeight: '800' 
   },
   meta: { 
-    color: '#CFCFCF', 
+    color: colors.textSecondary, 
     fontSize: 11, 
-    marginTop: 2, 
+    marginTop: 2,
     letterSpacing: 0.2 
   },
 });

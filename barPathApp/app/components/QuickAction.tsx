@@ -1,6 +1,8 @@
 import React from 'react';
-import { Pressable, Text, View, StyleSheet, Platform } from 'react-native';
+import { Pressable, View, StyleSheet, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Typography from './ui/Typography';
+import { colors, radii, spacing, shadow } from '../styles/theme';
 
 export type QuickActionProps = {
   title: string;
@@ -19,13 +21,19 @@ export default function QuickAction({ title, subtitle, icon, onPress }: QuickAct
       hitSlop={8}
     >
       <View style={styles.iconWrap}>
-        <Feather name={icon} size={20} color={'#C2FD4E'} />
+        <Feather name={icon} size={20} color={colors.accent} />
       </View>
       <View style={styles.texts}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Typography variant="subtitle" weight="bold" style={styles.title}>
+          {title}
+        </Typography>
+        {subtitle ? (
+          <Typography variant="caption" color={colors.textMuted} style={styles.subtitle}>
+            {subtitle}
+          </Typography>
+        ) : null}
       </View>
-      <Feather name = "chevron-right" size={18} color = "#8C8C8C" />
+      <Feather name="chevron-right" size={18} color={colors.textMuted} />
     </Pressable>
   );
 }
@@ -33,50 +41,43 @@ export default function QuickAction({ title, subtitle, icon, onPress }: QuickAct
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: '#161616',
-    borderColor: '#242424',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 64,
     ...Platform.select({
-      ios: { shadowColor: '#000', 
-        shadowOpacity: 0.18, 
-        shadowRadius: 10, 
-        shadowOffset: { 
-          width: 0, 
-          height: 6 
-        } 
+      ios: shadow.card,
+      android: {
+        elevation: shadow.card.elevation,
+        shadowColor: shadow.card.shadowColor,
+        shadowOpacity: shadow.card.shadowOpacity,
+        shadowRadius: shadow.card.shadowRadius,
+        shadowOffset: shadow.card.shadowOffset,
       },
-      android: { elevation: 2 },
     }),
   },
   pressed: { transform: [{ scale: 0.99 }] },
   iconWrap: {
     width: 34,
     height: 34,
-    borderRadius: 8,
-    backgroundColor: '#1F1F1F',
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#2A2A2A',
+    borderColor: colors.border,
   },
   texts: { flex: 1 },
-  title: { 
-    color: '#EDEDED', 
-    fontSize: 14.5, 
-    fontWeight: '800', 
-    letterSpacing: 0.2 
+  title: {
+    color: colors.textPrimary,
   },
-  subtitle: { 
-    color: '#9A9A9A', 
-    fontSize: 12, 
-    marginTop: 2, 
-    letterSpacing: 0.2 
+  subtitle: {
+    marginTop: spacing.xs,
   },
 });

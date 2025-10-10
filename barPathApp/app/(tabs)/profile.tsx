@@ -1,17 +1,22 @@
 import React from 'react';
-import { SafeAreaView, ScrollView, View, Text, StyleSheet, Pressable, Image, Alert, StatusBar, Platform, } from 'react-native';
+import { ScrollView, View, StyleSheet, Pressable, Image, Alert } from 'react-native';
 import { getAuth, signOut } from '@react-native-firebase/auth';
 import { useRouter } from 'expo-router';
+import Screen from '../components/ui/Screen';
+import Card from '../components/ui/Card';
+import Pill from '../components/ui/Pill';
+import Typography from '../components/ui/Typography';
+import { colors, spacing, radii, shadow } from '../styles/theme';
 
 export default function ProfileScreen() {
   const auth = getAuth();
   const router = useRouter();
   const user = auth.currentUser;
 
-  const initial =
-    user?.displayName?.[0]?.toUpperCase() ||
-    user?.email?.[0]?.toUpperCase() ||
-    'U';
+const initial =
+  user?.displayName?.[0]?.toUpperCase() ||
+  user?.email?.[0]?.toUpperCase() ||
+  'U';
 
   const handleSignOut = async () => {
     try {
@@ -24,75 +29,85 @@ export default function ProfileScreen() {
 
   const goToLibrary = () => router.push('/library');
   const goToUpload  = () => router.push('/upload');
-  //const goToAccount = () => router.push('/account'); // stub: add this route for future account management
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <Screen>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* header / avatar */}
         <View style={styles.header}>
-          {user?.photoURL ? (
-            <Image source={{ uri: user.photoURL }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarInitial}>{initial}</Text>
-            </View>
-          )}
+          <Pill label="Profile" tone="accent" uppercase />
+          <View style={styles.identity}>
+            {user?.photoURL ? (
+              <Image source={{ uri: user.photoURL }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Typography variant="hero" weight="black">
+                  {initial}
+                </Typography>
+              </View>
+            )}
 
-          <Text style={styles.name} numberOfLines={1}>
-            {user?.displayName || 'Anonymous'}
-          </Text>
-          {user?.email ? (
-            <Text style={styles.email} numberOfLines={1}>
-              {user.email}
-            </Text>
-          ) : null}
+            <View style={styles.identityText}>
+              <Typography variant="title" weight="black">
+                {user?.displayName || 'Anonymous'}
+              </Typography>
+              {user?.email ? (
+                <Typography variant="body" color={colors.textSecondary}>
+                  {user.email}
+                </Typography>
+              ) : null}
+            </View>
+          </View>
+
+          <Card tone="secondary" style={styles.statsCard}>
+            <Typography variant="subtitle" weight="bold" color={colors.textSecondary}>
+              Training stats coming soon
+            </Typography>
+            <Typography variant="body" color={colors.textMuted} style={styles.statsCopy}>
+              We’re building deeper analytics so you can track volume, consistency, and streaks right from here.
+            </Typography>
+          </Card>
         </View>
 
-        {/* quick Actions */}
         <View style={styles.section}>
-          <View style={styles.cardList}>
+          <Typography variant="subtitle" weight="bold" color={colors.textSecondary}>
+            Quick actions
+          </Typography>
+          <Card tone="secondary" padded={false} style={styles.cardList}>
             <ProfileRow title="Upload a lift" subtitle="Pick a video to analyze" onPress={goToUpload} />
             <ProfileRow title="Your library" subtitle="Manage saved videos" onPress={goToLibrary} />
-            {/*<ProfileRow title="Account" subtitle="Name, photo (coming soon)" onPress={goToAccount} />*/}
-          </View>
+          </Card>
         </View>
 
-        {/* app info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <View style={styles.aboutCard}>
-            <View style={styles.aboutRow}>
-              <Text style={styles.aboutLabel}>App</Text>
-              <Text style={styles.aboutValue}>barPath.io</Text>
-            </View>
+          <Typography variant="subtitle" weight="bold" color={colors.textSecondary}>
+            About
+          </Typography>
+          <Card tone="secondary" padded={false} style={styles.aboutCard}>
+            <InfoRow label="App" value="barPath.io" />
             <View style={styles.divider} />
-            <View style={styles.aboutRow}>
-              <Text style={styles.aboutLabel}>Version</Text>
-              <Text style={styles.aboutValue}>1.0.0</Text>
-            </View>
-          </View>
+            <InfoRow label="Version" value="1.0.0" />
+          </Card>
         </View>
 
-        {/* sign out */}
         <Pressable
-          style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.signOutButton, pressed && styles.signOutPressed]}
           android_ripple={{ color: 'rgba(0,0,0,0.15)' }}
           onPress={handleSignOut}
         >
-          <Text style={styles.signOutText}>Sign out</Text>
+          <Typography variant="subtitle" weight="bold" color={colors.textPrimary}>
+            Sign out
+          </Typography>
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-// might delete this component later, but keeping for now
+// might delete this component later
 function ProfileRow({
   title,
   subtitle,
@@ -109,141 +124,124 @@ function ProfileRow({
       style={({ pressed }) => [rowStyles.row, pressed && rowStyles.pressed]}
     >
       <View style={rowStyles.texts}>
-        <Text style={rowStyles.title}>{title}</Text>
-        {subtitle ? <Text style={rowStyles.subtitle}>{subtitle}</Text> : null}
+        <Typography variant="subtitle" weight="bold">
+          {title}
+        </Typography>
+        {subtitle ? (
+          <Typography variant="caption" color={colors.textMuted} style={rowStyles.subtitle}>
+            {subtitle}
+          </Typography>
+        ) : null}
       </View>
-      <Text style={rowStyles.chevron}>›</Text>
+      <Typography variant="title" color={colors.textMuted}>
+        ›
+      </Typography>
     </Pressable>
   );
 }
 
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.aboutRow}>
+      <Typography variant="caption" color={colors.textMuted}>
+        {label}
+      </Typography>
+      <Typography variant="body" color={colors.textSecondary}>
+        {value}
+      </Typography>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+    paddingTop: spacing.xl,
+    gap: spacing.xl,
   },
   header: {
-    alignItems: 'center',
-    paddingTop: 32,
-    paddingBottom: 18,
+    gap: spacing.lg,
   },
   avatar: {
     width: 104,
     height: 104,
     borderRadius: 52,
     borderWidth: 2,
-    borderColor: '#C2FD4E',
+    borderColor: colors.accent,
     marginBottom: 14,
   },
   avatarPlaceholder: {
     width: 104,
     height: 104,
     borderRadius: 52,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#C2FD4E',
-    marginBottom: 14,
+    borderColor: colors.accent,
   },
-  avatarInitial: {
-    color: '#fff',
-    fontSize: 40,
-    fontWeight: '800',
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
   },
-  name: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '800',
+  identityText: {
+    gap: spacing.xs,
   },
-  email: {
-    color: '#A0A0A0',
-    fontSize: 14,
-    marginTop: 4,
+  statsCard: {
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
-
-  section: { marginTop: 24 },
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 10,
-    letterSpacing: 0.2,
-    paddingLeft: 12,
+  statsCopy: {
+    lineHeight: 20,
   },
-
+  section: {
+    gap: spacing.md,
+  },
   cardList: {
-    backgroundColor: '#161616',
-    borderColor: '#242424',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
+    borderRadius: radii.lg,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.18,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-      },
-      android: { elevation: 2 },
-    }),
-  },
-
-  aboutCard: {
-    backgroundColor: '#161616',
-    borderColor: '#242424',
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderColor: colors.border,
+  },
+  aboutCard: {
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   aboutRow: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  aboutLabel: { color: '#9A9A9A', fontSize: 13 },
-  aboutValue: { color: '#EDEDED', fontSize: 13 },
-
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#262626',
-    marginVertical: 6,
+    backgroundColor: colors.border,
+    marginVertical: spacing.xs,
   },
-
   signOutButton: {
-    marginTop: 28,
     alignSelf: 'center',
-    backgroundColor: '#8A5BFE',
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } },
-      android: { elevation: 4 },
-    }),
+    backgroundColor: colors.destructive,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radii.md,
+    ...shadow.card,
   },
-  signOutText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  pressed: { 
-    transform: [{ scale: 0.98 }] 
+  signOutPressed: {
+    transform: [{ scale: 0.97 }],
   },
 });
 
 const rowStyles = StyleSheet.create({
   row: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: '#161616',
-    borderBottomColor: '#242424',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -251,7 +249,5 @@ const rowStyles = StyleSheet.create({
   },
   pressed: { transform: [{ scale: 0.99 }] },
   texts: { flex: 1, paddingRight: 12 },
-  title: { color: '#EDEDED', fontSize: 15, fontWeight: '700' },
-  subtitle: { color: '#9A9A9A', fontSize: 12, marginTop: 2 },
-  chevron: { color: '#8C8C8C', fontSize: 22, marginLeft: 6 },
+  subtitle: { marginTop: spacing.xs },
 });

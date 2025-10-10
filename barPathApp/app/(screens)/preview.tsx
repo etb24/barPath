@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, Alert,
+  View, StyleSheet, Alert,
   TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Video, ResizeMode, VideoReadyForDisplayEvent } from 'expo-av';
@@ -18,6 +18,9 @@ import {
 } from '@react-native-firebase/firestore';
 import { auth, storageDb, db } from '../../services/FirebaseConfig';
 import { promotePreview } from '../../services/api';
+import Screen from '../components/ui/Screen';
+import Typography from '../components/ui/Typography';
+import { colors, spacing, radii } from '../styles/theme';
 
 export default function PreviewScreen() {
   const {
@@ -122,11 +125,12 @@ export default function PreviewScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.videoCard, { aspectRatio: ratio }]}>
-        <Video
-          source={{ uri: processedUri }}
-          style={styles.video}
+    <Screen>
+      <View style={styles.container}>
+        <View style={[styles.videoCard, { aspectRatio: ratio }]}>
+          <Video
+            source={{ uri: processedUri }}
+            style={styles.video}
           shouldPlay
           isLooping
           resizeMode={ResizeMode.COVER}
@@ -135,58 +139,66 @@ export default function PreviewScreen() {
             if (width && height) setRatio(width / height);
           }}
         />
-      </View>
+        </View>
 
-      <View style={styles.saveRow}>
-        <TouchableOpacity
-          style={[styles.button, styles.saveButton]}
-          onPress={saveToCameraRoll}
-          disabled={busy}
-        >
-          <Text style={styles.saveButtonText}>Save to Camera Roll</Text>
-        </TouchableOpacity>
+        <View style={styles.saveRow}>
+          <TouchableOpacity
+            style={[styles.button, styles.saveButton]}
+            onPress={saveToCameraRoll}
+            disabled={busy}
+          >
+            <Typography variant="subtitle" weight="bold" color={colors.background}>
+              Save to Camera Roll
+            </Typography>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, styles.saveButton]}
-          onPress={saveToLibrary}
-          disabled={busy}
-        >
-          {busy
-            ? <ActivityIndicator color="#121212" />
-            : <Text style={styles.saveButtonText}>Save to Library</Text>
-          }
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.button, styles.saveButton]}
+            onPress={saveToLibrary}
+            disabled={busy}
+          >
+            {busy
+            ? <ActivityIndicator color={colors.background} />
+            : <Typography variant="subtitle" weight="bold" color={colors.background}>
+                Save to Library
+              </Typography>
+            }
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.discardRow}>
-        <TouchableOpacity
-          style={[styles.button, styles.discardButton]}
-          onPress={discard}
-          disabled={busy}
-        >
-          <Text style={styles.discardButtonText}>Discard</Text>
-        </TouchableOpacity>
+        <View style={styles.discardRow}>
+          <TouchableOpacity
+            style={[styles.button, styles.discardButton]}
+            onPress={discard}
+            disabled={busy}
+          >
+            <Typography variant="subtitle" weight="bold" color={colors.textPrimary}>
+              Discard
+            </Typography>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
-    paddingTop: 75,
-    padding: 16,
+    backgroundColor: colors.background,
+    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
     alignItems: 'center',
   },
   videoCard: {
     width: '100%',
-    borderRadius: 16,
+    borderRadius: radii.lg,
     borderWidth: 4,
-    borderColor: '#C2FD4E',
+    borderColor: colors.accent,
     overflow: 'hidden',
     backgroundColor:'#000',
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   video: {
     flex: 1,
@@ -195,34 +207,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   discardRow: {
     width: '100%',
     alignItems: 'center',
   },
   button: {
-    marginHorizontal: 5,
-    paddingVertical: 12,
-    borderRadius: 8,
+    marginHorizontal: spacing.xs,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
     alignItems: 'center',
   },
   saveButton: {
-    backgroundColor: '#C2FD4E',
+    backgroundColor: colors.accent,
     width: '48%',
   },
   discardButton: {
-    backgroundColor: '#ff4444',
+    backgroundColor: colors.destructive,
     width: '40%',
-  },
-  saveButtonText: {
-    color: '#121212',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  discardButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
