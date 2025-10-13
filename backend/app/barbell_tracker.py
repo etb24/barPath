@@ -6,17 +6,16 @@ import os
 from io import BytesIO
 import tempfile
 
-PALETTE_START = np.array([0, 0, 255], dtype=np.float32)  # red
-PALETTE_END = np.array([0, 0, 0], dtype=np.float32)    # black
+PALETTE_START = np.array([0, 0, 255], dtype=np.float32) # red
+PALETTE_END = np.array([0, 0, 0], dtype=np.float32) # black
 
 class BarbellPathTracker:
-    def __init__(self, model_path, confidence_threshold=0.5, max_path_length=1000):
+    def __init__(self, model_path, confidence_threshold=0.5, max_path_length=1000) -> None:
         self.model = YOLO(model_path)
         self.confidence_threshold = confidence_threshold
         self.max_path_length = max_path_length
     
-    
-    def _process_frame(self, frame, positions, draw_box=False,):
+    def _process_frame(self, frame, positions, draw_box=False,) -> np.ndarray:
         # run detection
         results = self.model(frame)
         
@@ -27,7 +26,7 @@ class BarbellPathTracker:
             confidences = results[0].boxes.conf.cpu().numpy()
             best_idx = np.argmax(confidences)
             if confidences[best_idx] > self.confidence_threshold:
-                box = boxes[best_idx]
+                box = boxes[best_idx] # x1, y1, x2, y2
                 cx = int((box[0] + box[2]) / 2)
                 cy = int((box[1] + box[3]) / 2)
                 positions.append((cx, cy))
@@ -50,7 +49,7 @@ class BarbellPathTracker:
                     thickness
                 )
         
-        # draw bounding box if enabled
+        # draw bounding box if enabled (testing purposes)
         if draw_box and current_detection is not None:
             x1, y1, x2, y2 = map(int, current_detection)
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -58,24 +57,15 @@ class BarbellPathTracker:
                 frame, "Barbell", (x1, y1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2
             )
-        
-        # frame counter
-#        cv2.putText(
-#            frame, f"Points: {len(positions)}", (10, 30),
-#            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
-#        )
-        
+               
         return frame
     
-    def process_video(self, video_path, output_path, draw_box=False,):
+    def process_video(self, video_path, output_path, draw_box=False,) -> dict:
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             return {"success": False, "message": "Could not open video file"}
         
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
 
         ret, first_frame = cap.read()
         if not ret:
@@ -83,17 +73,14 @@ class BarbellPathTracker:
             return {"success": False, "message": "Could not read video"}
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-        fh, fw = first_frame.shape[:2]
-        needs_rotation = (width > height and fh > fw) or (width < height and fw > fh)
-        out_w = height if needs_rotation else width
-        out_h = width if needs_rotation else height
+        frame_height, frame_width = first_frame.shape[:2]
         
         out_dir = os.path.dirname(output_path)
         if out_dir and not os.path.exists(out_dir):
             os.makedirs(out_dir, exist_ok=True)
         
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (out_w, out_h))
+        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
         if not out.isOpened():
             cap.release()
             return {"success": False, "message": "Could not create output video"}
@@ -106,16 +93,11 @@ class BarbellPathTracker:
                 ret, frame = cap.read()
                 if not ret:
                     break
-                if needs_rotation:
-                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
-                
+
                 frame = self._process_frame(frame, positions, draw_box,)
                 out.write(frame)
                 
                 frames += 1
-                if frames % 100 == 0:
-                    pct = (frames / total_frames) * 100
-                    print(f"Processing: {pct:.1f}% complete")
         finally:
             cap.release()
             out.release()
@@ -127,7 +109,7 @@ class BarbellPathTracker:
                 "filename": os.path.basename(output_path),
                 "frames": frames,
                 "fps": fps,
-                "resolution": f"{out_w}x{out_h}",
+                "resolution": f"{frame_width}x{frame_height}",
                 "duration_seconds": frames / fps if fps else 0
             },
             "tracking": {
