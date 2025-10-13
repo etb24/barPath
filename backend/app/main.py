@@ -4,10 +4,9 @@ from io import BytesIO
 from datetime import timedelta
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, Body, Request
+from fastapi import FastAPI, HTTPException, Depends, Body
 
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import Response
 
 from firebase_admin import firestore as fb_fs
 from app.firebase_config import bucket
@@ -23,23 +22,14 @@ SIGN_URL_EXP = timedelta(hours = 1)
 
 app = FastAPI(title=API_TITLE)
 
-ALLOWED_ORIGINS = json.loads(os.getenv("ALLOWED_ORIGINS", '["http://localhost:3000","http://localhost:19006"]'))
+ALLOWED_ORIGINS = json.loads(os.getenv("ALLOWED_ORIGINS"))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[ALLOWED_ORIGINS],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.middleware("http")
-async def security_headers(request: Request, call_next):
-    resp: Response = await call_next(request)
-    resp.headers["X-Content-Type-Options"] = "nosniff"
-    resp.headers["X-Frame-Options"] = "DENY"
-    resp.headers["Referrer-Policy"] = "no-referrer"
-    resp.headers["Permissions-Policy"] = "camera=(), microphone=()"
-    return resp
 
 # initialize tracker
 tracker = BarbellPathTracker(
@@ -78,7 +68,7 @@ async def process_from_bucket(
     out_blob = bucket.blob(out_blob_path)
     out_blob.upload_from_file(output_buffer, content_type = "video/mp4")
 
-    # delete _all_ raw uploads for this user
+    # delete _all_ raw uploads for this user (save space, no longer needed once processed)
     raw_prefix = f"{user_id}/raw/"
     # list_blobs returns a generator of Blob objects
     blobs = list(bucket.list_blobs(prefix=raw_prefix))
