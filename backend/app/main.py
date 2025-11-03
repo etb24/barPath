@@ -22,7 +22,7 @@ SIGN_URL_EXP = timedelta(hours = 1)
 
 app = FastAPI(title=API_TITLE)
 
-ALLOWED_ORIGINS = json.loads(os.getenv("ALLOWED_ORIGINS"))
+ALLOWED_ORIGINS = json.loads(os.getenv("ALLOWED_ORIGINS", '["*"]'))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -123,7 +123,7 @@ async def promote_preview(
         .set({
             "blobPath": library_path,
             "status": "saved",
-            "savedAt": fb_fs.SERVER_TIMESTAMP,
+            "savedAt": fb_fs.firestore.SERVER_TIMESTAMP,
         }, merge=True)
 
     return {"blobPath": library_path, "status": "saved"}
