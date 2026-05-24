@@ -5,13 +5,17 @@ import { storageDb } from './FirebaseConfig';
 
 const API_BASE = 'http://localhost:8000';  // fastAPI URL
 
+function requireUser() {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error('Not signed in');
+  return user;
+}
+
 export async function processVideo(inputUri: string): Promise<{
   localUri: string;
   blobPath: string;
 }> {
-  // get user, token, timestamp
-  const auth = getAuth();
-  const user = auth.currentUser!;
+  const user = requireUser();
   const idToken = await user.getIdToken();
   const ts = Date.now().toString();
 
@@ -53,7 +57,7 @@ export async function promotePreview(previewPath: string): Promise<{
   blobPath: string;
   status: 'saved';
 }> {
-  const user = getAuth().currentUser!;
+  const user = requireUser();
   const idToken = await user.getIdToken();
 
   const res = await fetch(`${API_BASE}/promote_preview`, {

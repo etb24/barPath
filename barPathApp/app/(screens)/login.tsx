@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Image, ActivityIndicator, Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth';
 import { GoogleSignin, GoogleSigninButton, statusCodes } from '@react-native-google-signin/google-signin';
 import { auth } from '../../services/FirebaseConfig';
@@ -8,15 +9,19 @@ import Card from '../components/ui/Card';
 import Typography from '../components/ui/Typography';
 import { colors, spacing, radii } from '../styles/theme';
 
+const GOOGLE_WEB_CLIENT_ID = Constants.expoConfig?.extra?.googleWebClientId as string | undefined;
+
 export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const LOGO = require('../../assets/images/logo.png');
 
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: '178258878322-t57cm3fjt2shdnf4iketkjh8n8spjaro.apps.googleusercontent.com',
-    });
+    if (!GOOGLE_WEB_CLIENT_ID) {
+      console.warn('googleWebClientId missing from app.json extra');
+      return;
+    }
+    GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
   }, []);
 
   const onGoogleButtonPress = async () => {
