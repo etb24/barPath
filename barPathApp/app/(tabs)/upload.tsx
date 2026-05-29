@@ -45,6 +45,10 @@ export default function HomeScreen() {
   return (
     <Screen>
       <View style={styles.wrapper}>
+        {/* TEMP spike entry point — remove after frame-extraction benchmark */}
+        <Pressable onPress={() => router.push('/spike' as any)} style={{ padding: 8 }}>
+          <Typography variant="caption" color={colors.textMuted}>▶ Frame benchmark (spike)</Typography>
+        </Pressable>
         <Pill label="Upload" tone="accent" uppercase />
         <Typography variant="hero" weight="black" style={styles.title}>
           Import a lift for analysis
