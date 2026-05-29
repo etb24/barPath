@@ -2,6 +2,7 @@
 // Delete this file (and the temporary button in upload.tsx) once the spike is done.
 import React, { useState } from 'react';
 import { ScrollView, Text, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { getThumbnailAsync } from 'expo-video-thumbnails';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -10,8 +11,9 @@ import * as FileSystem from 'expo-file-system';
 import { InferenceSession, Tensor } from 'onnxruntime-react-native';
 import { decode as jpegDecode } from 'jpeg-js';
 import { toByteArray } from 'base64-js';
+import { BarbellTracker } from '../../features/tracking/tracker';
 
-const FPS = 30;
+const FPS = 60;
 const INTERVAL_MS = 1000 / FPS;
 const MAX_FRAMES = 600;
 const SIZE = 640; // model input side
@@ -19,6 +21,7 @@ const SIZE = 640; // model input side
 const MODEL = require('../../assets/models/barbell-model-v1.2.0.onnx');
 
 export default function Spike() {
+  const router = useRouter();
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const append = (line: string) => setLog((prev) => [...prev, line]);
@@ -61,7 +64,14 @@ export default function Spike() {
       const asset = Asset.fromModule(MODEL);
       await asset.downloadAsync();
       const b64 = await FileSystem.readAsStringAsync(asset.localUri!, { encoding: FileSystem.EncodingType.Base64 });
-      const session = await InferenceSession.create(toByteArray(b64));
+      let session: InferenceSession;
+      try {
+        session = await InferenceSession.create(toByteArray(b64), { executionProviders: ['coreml', 'cpu'] });
+        append('EP: coreml');
+      } catch {
+        session = await InferenceSession.create(toByteArray(b64));
+        append('EP: cpu (coreml unavailable)');
+      }
       append(`inputs:  ${session.inputNames.join(', ')}`);
       append(`outputs: ${session.outputNames.join(', ')}`);
 
@@ -122,6 +132,39 @@ export default function Spike() {
     }
   };
 
+  const runFullTrack = async () => {
+    setLog([]);
+    setRunning(true);
+    try {
+      const video = await pickVideo();
+      if (!video) { append('Cancelled.'); return; }
+      append('loading model + tracking full video...');
+      const tracker = new BarbellTracker();
+      const start = Date.now();
+      const result = await tracker.processVideo(video.uri, video.duration ?? 0, {
+        fps: 10,
+        onProgress: (done, total) => { if (done % 20 === 0) append(`  ${done}/${total}`); },
+      });
+      const secs = ((Date.now() - start) / 1000).toFixed(1);
+      const n = result.frameCount || 1;
+      const { extractMs, preprocessMs, inferMs } = result.timings;
+      append('--- RESULT ---');
+      append(`processed ${result.frameCount} frames in ${secs}s`);
+      append(`detected: ${result.detectedCount}/${result.frameCount}`);
+      append(`per-frame: extract ${(extractMs / n).toFixed(0)} | preprocess ${(preprocessMs / n).toFixed(0)} | infer ${(inferMs / n).toFixed(0)} ms`);
+      if (result.positions.length) {
+        const first = result.positions[0];
+        const last = result.positions[result.positions.length - 1];
+        append(`first: t=${first.t} x=${first.x.toFixed(3)} y=${first.y.toFixed(3)}`);
+        append(`last:  t=${last.t} x=${last.x.toFixed(3)} y=${last.y.toFixed(3)}`);
+      }
+    } catch (e) {
+      append(`ERROR: ${String(e)}`);
+    } finally {
+      setRunning(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.heading}>On-device ML spike (ONNX)</Text>
@@ -130,6 +173,12 @@ export default function Spike() {
       </Pressable>
       <Pressable onPress={runInference} disabled={running} style={styles.button}>
         <Text style={styles.buttonText}>{running ? 'Running…' : '2. Inference test'}</Text>
+      </Pressable>
+      <Pressable onPress={runFullTrack} disabled={running} style={styles.button}>
+        <Text style={styles.buttonText}>{running ? 'Running…' : '3. Track full video'}</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push('/spike-overlay' as any)} disabled={running} style={styles.button}>
+        <Text style={styles.buttonText}>4. Track + show overlay →</Text>
       </Pressable>
       {log.map((line, i) => (
         <Text key={i} style={styles.logLine}>{line}</Text>
