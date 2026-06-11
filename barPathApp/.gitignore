@@ -47,3 +47,7 @@ GoogleService-Info.plist
 
 # vscode
 .vscode
+
+# models
+*.tflite
+*.onnx
