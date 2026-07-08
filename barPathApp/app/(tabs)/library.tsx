@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, Alert, Dimensions, Image, ActivityIndicator, Platform, Pressable, ActionSheetIOS, } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
 import { useRouter } from 'expo-router';
+import { bakeVideo } from '../../services/bake';
 import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject, getDownloadURL, } from '../../services/FirebaseConfig';
 import { QueryDocumentSnapshot } from '@firebase/firestore-types';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import firestore from '@react-native-firebase/firestore';
 import { Feather } from '@expo/vector-icons';
 import PreviewModal from '../components/PreviewModal';
+import type { Position } from '../../features/tracking/types';
 import Screen from '../components/ui/Screen';
 import Card from '../components/ui/Card';
 import Pill from '../components/ui/Pill';
@@ -17,11 +18,12 @@ import { colors, spacing, radii } from '../styles/theme';
 
 interface VideoItem {
   id: string;
-  blobPath: string;
-  url: string;
+  videoBlobPath: string;      // original video in Storage
+  url: string;                // download URL for the original video
   thumbnailUrl: string;
   liftName: string;
-  processedAt: FirebaseFirestoreTypes.Timestamp;
+  path: Position[];           // normalized bar path, rendered as a live overlay
+  createdAt: FirebaseFirestoreTypes.Timestamp;
 }
 
 const { width } = Dimensions.get('window');
@@ -56,7 +58,7 @@ export default function LibraryScreen() {
     }
     return arr.sort(
       (a, b) =>
-        (b.processedAt?.toMillis?.() ?? 0) - (a.processedAt?.toMillis?.() ?? 0)
+        (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0)
     );
   }, [videos, sort]);
 
@@ -72,7 +74,7 @@ export default function LibraryScreen() {
 
     const videosQuery = query(
       collection(db, 'users', user.uid, 'videos'),
-      orderBy('processedAt', 'desc')
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(
@@ -81,23 +83,24 @@ export default function LibraryScreen() {
         setLoading((prev) => prev && videos.length === 0);
 
         const results = await Promise.allSettled<VideoItem>(
-          snapshot.docs.map(async (d: QueryDocumentSnapshot<any>) => {
-            const data = d.data();
-            const blobPath = String(data.blobPath || '');
+          snapshot.docs.map(async (doc: QueryDocumentSnapshot<any>) => {
+            const data = doc.data();
+            const videoBlobPath = String(data.videoBlobPath || '');
 
-            if (!blobPath.startsWith(`${user.uid}/`)) {
-              throw new Error(`unauthorized path: ${blobPath}`);
+            if (!videoBlobPath.startsWith(`${user.uid}/`)) {
+              throw new Error(`unauthorized path: ${videoBlobPath}`);
             }
 
-            const url = await getDownloadURL(storageRef(storageDb, blobPath));
+            const url = await getDownloadURL(storageRef(storageDb, videoBlobPath));
 
             return {
-              id: d.id,
-              blobPath,
+              id: doc.id,
+              videoBlobPath,
               url,
               thumbnailUrl: data.thumbnailUrl ?? '',
               liftName: data.liftName ?? 'Untitled',
-              processedAt: data.processedAt,
+              path: Array.isArray(data.path) ? (data.path as Position[]) : [],
+              createdAt: data.createdAt,
             } as VideoItem;
           })
         );
@@ -126,9 +129,8 @@ export default function LibraryScreen() {
           Alert.alert('Some videos couldn’t be loaded', 'Please try again later.');
         }
       },
-      (error) => {
+      (error: any) => {
         const signedOut = !auth.currentUser;
-        // @ts-expect-error
         if (signedOut && error?.code === 'permission-denied') return;
         console.error(error);
         setLoading(false);
@@ -137,7 +139,6 @@ export default function LibraryScreen() {
     );
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
   // action functions
@@ -160,7 +161,7 @@ export default function LibraryScreen() {
       if (!user) throw new Error('User not authenticated');
 
       // delete the MP4
-      const vidRef = storageRef(storageDb, item.blobPath);
+      const vidRef = storageRef(storageDb, item.videoBlobPath);
       await deleteObject(vidRef).catch((e) => {
         if (e.code !== 'storage/object-not-found') throw e;
       });
@@ -168,6 +169,12 @@ export default function LibraryScreen() {
       // delete the thumbnail
       const thumbRef = storageRef(storageDb, `${user.uid}/thumbs/${item.id}.jpg`);
       await deleteObject(thumbRef).catch((e) => {
+        if (e.code !== 'storage/object-not-found') throw e;
+      });
+
+      // delete the cached baked (path-burned-in) MP4 if one was ever created, object-not-found is expected here
+      const bakedRef = storageRef(storageDb, `${user.uid}/baked/${item.id}.mp4`);
+      await deleteObject(bakedRef).catch((e) => {
         if (e.code !== 'storage/object-not-found') throw e;
       });
 
@@ -184,21 +191,16 @@ export default function LibraryScreen() {
     }
   }
 
+  // Save to camera roll: bake the bar path into a real MP4 first
   async function handleSave(item: VideoItem) {
     setBusy(true);
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') throw new Error('Photo library permission not granted');
 
-      const filename = `${item.id}.mp4`;
-      const localUri = FileSystem.cacheDirectory + filename;
+      const localUri = await bakeVideo(item.id);
 
-      const downloadRes = await FileSystem.downloadAsync(item.url, localUri);
-      if (downloadRes.status !== 200) {
-        throw new Error(`Download failed with status ${downloadRes.status}`);
-      }
-
-      const asset = await MediaLibrary.createAssetAsync(downloadRes.uri);
+      const asset = await MediaLibrary.createAssetAsync(localUri);
       const album = await MediaLibrary.getAlbumAsync('BarbellTracker');
       if (album == null) {
         await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
@@ -206,7 +208,7 @@ export default function LibraryScreen() {
         await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
       }
 
-      Alert.alert('Saved', 'Video has been saved to your camera roll!');
+      Alert.alert('Saved', 'Video with bar path saved to your camera roll!');
     } catch (e: any) {
       Alert.alert('Save failed', e.message);
     } finally {
@@ -304,7 +306,7 @@ export default function LibraryScreen() {
         <Text numberOfLines={1} style={styles.name}>
           {item.liftName || 'Untitled'}
         </Text>
-        <Text style={styles.meta}>{formatDate(item.processedAt)}</Text>
+        <Text style={styles.meta}>{formatDate(item.createdAt)}</Text>
       </View>
     </Pressable>
   );

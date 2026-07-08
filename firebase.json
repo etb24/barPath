@@ -1,0 +1,16 @@
+{
+  "functions": [
+    {
+      "codebase": "default",
+      "ignore": [
+        "venv",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "source": "functions",
+      "runtime": "python314"
+    }
+  ]
+}

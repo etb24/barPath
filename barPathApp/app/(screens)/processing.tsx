@@ -1,40 +1,71 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { processVideo } from '../../services/api';
+import { BarbellTracker } from '../../features/tracking/tracker';
+import { setHandoff } from '../../features/tracking/handoff';
 import Screen from '../components/ui/Screen';
 import Typography from '../components/ui/Typography';
 import { colors, spacing } from '../styles/theme';
 
 export default function ProcessingScreen() {
-  const { inputUri } = useLocalSearchParams<{ inputUri: string }>();
+  const { inputUri, liftName, duration, width, height } = useLocalSearchParams<{
+    inputUri: string;
+    liftName?: string;
+    duration?: string;
+    width?: string;
+    height?: string;
+  }>();
   const router = useRouter();
 
+  const [progress, setProgress] = useState(0); // 0-1
+
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const { localUri, blobPath}  = await processVideo(inputUri);
-        // as soon as it’s written locally, navigate to preview
-        router.replace({
-          pathname: '/preview',
-          params: { processedUri: localUri, blobPath},
+        const tracker = new BarbellTracker();
+        const result = await tracker.processVideo(inputUri, Number(duration) || 0, {
+          fps: 10,
+          onProgress: (done, total) => {
+            if (!cancelled && total > 0) setProgress(done / total);
+          },
         });
+        if (cancelled) return;
+
+        // hand the path off to the preview screen (positions[] is too bulky for params)
+        setHandoff({
+          videoUri: inputUri,
+          liftName: liftName ?? 'My Lift',
+          positions: result.positions,
+          fps: result.fps,
+          frameCount: result.frameCount,
+          width: Number(width) || 0,
+          height: Number(height) || 0,
+        });
+
+        router.replace({ pathname: '/preview', params: { liftName: liftName ?? 'My Lift' } });
       } catch (e: any) {
-        Alert.alert('Processing failed', e.message || 'Unknown error');
+        if (cancelled) return;
+        Alert.alert('Processing failed', e?.message || 'Unknown error');
         router.replace('/');
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const percentage = Math.round(progress * 100);
 
   return (
     <Screen>
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.accent} />
         <Typography variant="subtitle" weight="bold" style={styles.title}>
-          Processing your lift…
+          Analyzing your lift…
         </Typography>
         <Typography variant="body" color={colors.textSecondary} style={styles.copy}>
-          We’re mapping the bar path and rendering metrics. This should finish shortly.
+          Tracking the barbell on-device, frame by frame. {percentage > 0 ? `${percentage}%` : ''}
         </Typography>
       </View>
     </Screen>

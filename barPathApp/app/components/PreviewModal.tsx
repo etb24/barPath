@@ -1,7 +1,12 @@
-import React from 'react';
-import { Modal, View, TouchableOpacity, ActivityIndicator, StyleSheet, SafeAreaView, } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import React, { useMemo, useState } from 'react';
+import {
+  Modal, View, TouchableOpacity, ActivityIndicator, StyleSheet, SafeAreaView,
+  type LayoutChangeEvent,
+} from 'react-native';
+import { Video, ResizeMode, type AVPlaybackStatus, type VideoReadyForDisplayEvent } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import { computeContentRect, PathOverlayLayer } from '../../features/tracking/videoOverlay';
+import type { Position } from '../../features/tracking/types';
 import Typography from './ui/Typography';
 import { colors, spacing, radii } from '../styles/theme';
 
@@ -15,36 +20,60 @@ export default function libraryModal({
   onRename,
 }: {
   visible: boolean;
-  item: { url: string; liftName: string } | null;
+  item: { url: string; liftName: string; path: Position[] } | null;
   busy: boolean;
   onClose: () => void;
   onSave: () => void;
   onDelete: () => void;
   onRename: () => void;
 }) {
-  // EARLY RETURN: nothing will render (no stray boolean) unless both are provided
+  const [layout, setLayout] = useState({ w: 0, h: 0 });
+  const [videoAspect, setVideoAspect] = useState(9 / 16);
+  const [currentTimeMs, setCurrentTimeMs] = useState(0);
+
+  const rectangle = useMemo(
+    () => computeContentRect(layout.w, layout.h, videoAspect),
+    [layout, videoAspect],
+  );
+
   if (!visible || !item) {
     return null;
   }
 
+  const onVideoLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (width && height) setLayout({ w: width, h: height });
+  };
+
   return (
     <Modal
-      visible = {true}
-      animationType = "slide"
-      presentationStyle = "overFullScreen"
+      visible={true}
+      animationType="slide"
+      presentationStyle="overFullScreen"
       transparent
     >
-      <View style = {styles.overlay}>
-        <SafeAreaView style = {styles.container}>
+      <View style={styles.overlay}>
+        <SafeAreaView style={styles.container}>
 
-          <Video
-            source = {{ uri: item.url }}
-            style = {styles.video}
-            useNativeControls
-            resizeMode = {ResizeMode.CONTAIN}
-            shouldPlay
-            isLooping
-          />
+          <View style={styles.videoWrap} onLayout={onVideoLayout}>
+            <Video
+              source={{ uri: item.url }}
+              style={StyleSheet.absoluteFill}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              isLooping
+              progressUpdateIntervalMillis={30}
+              onReadyForDisplay={(e: VideoReadyForDisplayEvent) => {
+                const { width, height } = e.naturalSize;
+                if (width && height) setVideoAspect(width / height);
+              }}
+              onPlaybackStatusUpdate={(s: AVPlaybackStatus) => {
+                if (s.isLoaded) setCurrentTimeMs(s.positionMillis);
+              }}
+            />
+            <PathOverlayLayer positions={item.path} currentTimeMs={currentTimeMs} rect={rectangle} />
+          </View>
 
           <View style={styles.header}>
             <TouchableOpacity onPress={onRename}>
@@ -54,33 +83,33 @@ export default function libraryModal({
             </TouchableOpacity>
           </View>
 
-          <View style = {styles.controls}>
+          <View style={styles.controls}>
             <TouchableOpacity
-              style = {styles.controlButton}
-              onPress = {onSave}
-              disabled = {busy}
+              style={styles.controlButton}
+              onPress={onSave}
+              disabled={busy}
             >
               {busy
                 ? <ActivityIndicator color={colors.textPrimary} />
-                : <Ionicons name = "download" size = {24} color={colors.textPrimary} />}
+                : <Ionicons name="download" size={24} color={colors.textPrimary} />}
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.controlButton, styles.deleteButton]}
-              onPress = {onDelete}
-              disabled = {busy}
+              onPress={onDelete}
+              disabled={busy}
             >
-              <Ionicons name = "trash" size={24} color={colors.textPrimary} />
+              <Ionicons name="trash" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.controlButton, styles.closeButton]}
-              onPress = {onClose}
-              disabled = {busy}
+              onPress={onClose}
+              disabled={busy}
             >
-              <Ionicons name = "close" size={24} color={colors.background} />
+              <Ionicons name="close" size={24} color={colors.background} />
             </TouchableOpacity>
-          
+
           </View>
         </SafeAreaView>
       </View>
@@ -99,12 +128,12 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.sm,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   title: {
     color: colors.textPrimary,
   },
-  video: {
+  videoWrap: {
     flex: 1,
     marginHorizontal: spacing.lg,
     borderRadius: radii.lg,
@@ -127,5 +156,5 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     backgroundColor: colors.textPrimary,
-  }
+  },
 });
