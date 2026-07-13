@@ -1,1 +1,8 @@
 .DS_Store
+node_modules/
+credentials/
+**/credentials/
+*-firebase-adminsdk-*.json
+serviceAccount*.json
+.env
+.env.*

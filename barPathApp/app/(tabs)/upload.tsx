@@ -29,12 +29,18 @@ export default function HomeScreen() {
       });
 
       if (result.canceled || !result.assets[0]?.uri) return;
+      const asset = result.assets[0];
 
       router.push({
         pathname: '/processing',
         params: {
-          inputUri: result.assets[0].uri,
+          inputUri: asset.uri,
           liftName: 'My Lift',
+          // the on-device tracker needs duration to compute frame count
+          // dimensions drive the overlay's aspect ratio on preview
+          duration: String(asset.duration ?? 0),
+          width: String(asset.width ?? 0),
+          height: String(asset.height ?? 0),
         },
       });
     } finally {
