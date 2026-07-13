@@ -11,6 +11,7 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@azzapp/react-native-skia-video": "^0.9.0",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-firebase/app": "^23.0.0",
     "@react-native-firebase/auth": "^23.0.0",

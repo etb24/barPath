@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { Canvas, Path, Skia, type SkPath } from '@shopify/react-native-skia';
 import type { Position } from './types';
-
-const BANDS = 24; // color steps along the trail
+import { computeBands, bandColor } from './pathBands';
 
 interface PathOverlayProps {
   positions: Position[];
@@ -11,34 +10,19 @@ interface PathOverlayProps {
   height: number;
   strokeWidth?: number;
 }
-// (recomputed as currentTimeMs advances), so the leading edge stays red as the trail grows.
-// Rendered as ~BANDS short sub-paths so it's cheap (the per-segment version reconciled ~60 elements and lagged). Positions are normalized 0-1, scaled to the canvas here.
+// Trail band math lives in ./pathBands (shared with the video exporter)
+// Here we turn each band's index range into a Skia sub-path scaled to the canvas
+// Rendered as ~BANDS short sub-paths so it's cheap (the per-segment version reconciled ~60 elements and lagged)
 export function PathOverlay({ positions, currentTimeMs, width, height, strokeWidth = 2.5 }: PathOverlayProps) {
   const bands = useMemo<{ path: SkPath; color: string }[]>(() => {
-    // visible prefix (positions are time-ordered)
-    let visible = 0;
-    while (visible < positions.length && positions[visible].t <= currentTimeMs) visible++;
-    if (visible < 2) return [];
-
-    const lastSeg = visible - 1; // segments connect points 0..lastSeg
-    const perBand = Math.ceil(lastSeg / BANDS);
-    const numBands = Math.ceil(lastSeg / perBand);
-
-    const out: { path: SkPath; color: string }[] = [];
-    let b = 0;
-    for (let startIdx = 0; startIdx < lastSeg; startIdx += perBand) {
-      const endIdx = Math.min(lastSeg, startIdx + perBand); // shared boundary point => no gaps
+    return computeBands(positions, currentTimeMs).map(({ start, end, frac }) => {
       const path = Skia.Path.Make();
-      path.moveTo(positions[startIdx].x * width, positions[startIdx].y * height);
-      for (let i = startIdx + 1; i <= endIdx; i++) {
+      path.moveTo(positions[start].x * width, positions[start].y * height);
+      for (let i = start + 1; i <= end; i++) {
         path.lineTo(positions[i].x * width, positions[i].y * height);
       }
-      // oldest band (b=0) = black, newest band = red
-      const frac = numBands > 1 ? b / (numBands - 1) : 1;
-      out.push({ path, color: `rgb(${Math.round(255 * frac)},0,0)` });
-      b++;
-    }
-    return out;
+      return { path, color: bandColor(frac) };
+    });
   }, [positions, currentTimeMs, width, height]);
 
   return (

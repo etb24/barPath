@@ -23,6 +23,8 @@ interface VideoItem {
   thumbnailUrl: string;
   liftName: string;
   path: Position[];           // normalized bar path, rendered as a live overlay
+  fps: number;                // sampling fps + frame count drive on-device baking
+  frameCount: number;
   createdAt: FirebaseFirestoreTypes.Timestamp;
 }
 
@@ -100,6 +102,8 @@ export default function LibraryScreen() {
               thumbnailUrl: data.thumbnailUrl ?? '',
               liftName: data.liftName ?? 'Untitled',
               path: Array.isArray(data.path) ? (data.path as Position[]) : [],
+              fps: Number(data.fps) || 10,
+              frameCount: Number(data.frameCount) || 0,
               createdAt: data.createdAt,
             } as VideoItem;
           })
@@ -172,12 +176,6 @@ export default function LibraryScreen() {
         if (e.code !== 'storage/object-not-found') throw e;
       });
 
-      // delete the cached baked (path-burned-in) MP4 if one was ever created, object-not-found is expected here
-      const bakedRef = storageRef(storageDb, `${user.uid}/baked/${item.id}.mp4`);
-      await deleteObject(bakedRef).catch((e) => {
-        if (e.code !== 'storage/object-not-found') throw e;
-      });
-
       // delete Firestore doc
       const docRef = doc(db, 'users', user.uid, 'videos', item.id);
       await deleteDoc(docRef);
@@ -198,7 +196,13 @@ export default function LibraryScreen() {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') throw new Error('Photo library permission not granted');
 
-      const localUri = await bakeVideo(item.id);
+      const localUri = await bakeVideo({
+        videoId: item.id,
+        sourceUrl: item.url,
+        positions: item.path,
+        fps: item.fps,
+        frameCount: item.frameCount,
+      });
 
       const asset = await MediaLibrary.createAssetAsync(localUri);
       const album = await MediaLibrary.getAlbumAsync('BarbellTracker');
