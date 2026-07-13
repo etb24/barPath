@@ -284,7 +284,7 @@ export default function LibraryScreen() {
   function formatDate(ts?: FirebaseFirestoreTypes.Timestamp) {
     try {
       const d = ts?.toDate?.() ?? new Date();
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     } catch {
       return '';
     }

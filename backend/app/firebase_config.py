@@ -1,18 +1,12 @@
-from dotenv import load_dotenv
-import os
 import firebase_admin
-from firebase_admin import credentials, storage, firestore, auth
+from firebase_admin import credentials, storage
 
-load_dotenv()
+from app.config import settings
 
-firebase_creds_path = os.getenv("FIREBASE_CREDENTIALS")
-firebase_bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
-
-
-cred = credentials.Certificate(firebase_creds_path)
+cred = credentials.Certificate(settings.firebase_credentials)
 
 firebase_admin.initialize_app(cred, {
-'storageBucket': firebase_bucket_name
+    "storageBucket": settings.firebase_storage_bucket,
 })
 
 bucket = storage.bucket()

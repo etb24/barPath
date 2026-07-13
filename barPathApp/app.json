@@ -55,6 +55,9 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "googleWebClientId": "178258878322-t57cm3fjt2shdnf4iketkjh8n8spjaro.apps.googleusercontent.com"
     }
   }
 }
