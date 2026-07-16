@@ -6,76 +6,69 @@ As a former competitive athlete and fitness enthusiast with a history of injurie
 
 ## Tech Stack
 
-- **Frontend**: React Native, Expo, TypeScript
-- **Backend**: Python, FastAPI
-- **Cloud Services**: Firebase (Authentication, Storage, Firestore)
-- **Computer Vision**: YOLOv11, OpenCV, PyTorch
+- **App**: React Native, Expo, TypeScript, Expo Router
+- **On-Device ML**: ONNX Runtime, YOLOv11-derived barbell detection model
+- **Cloud Services**: Firebase (Authentication, Firestore, Storage)
 
 ## Features
 
-- **Barbell Detection**
-  Uses a deep learning model to detect barbells in workout videos
+- **On-Device Barbell Detection**
+  Runs a deep learning model locally with ONNX Runtime to find the barbell frame by frame — no server round-trip, no upload wait
 
 - **Path Visualization**
-  Draws a color-coded trail showing the motion of the barbell throughout the lift
+  Draws a color-coded trail showing the motion of the barbell throughout the lift, rendered with Skia
 
-- **Mobile App**
-  Built with React Native and Expo for cross-platform mobile support
+- **Shareable Exports**
+  Bakes the path overlay into an MP4 on-device using Skia and the native video encoder
 
-- **Firebase Integration**
-  - Secure login via Firebase Authentication
-  - Cloud Storage for raw and processed video uploads
-  - Firestore for managing video metadata and personal libraries
+- **Personal Library**
+  Secure login via Firebase Authentication, with Firestore and Cloud Storage managing each user's video library
 
-- **Backend Video Processing**
-  - FastAPI microservice retrieves raw videos from Firebase
-  - Processes videos using computer vision
-  - Saves the processed videos back to Firebase Storage
-  - Mobile app downloads and displays the enhanced videos
+## How It Works
 
-  ## Potential Future Features
+1. Pick or record a lift video in the app
+2. The tracker decodes frames and runs barbell detection locally
+3. The path is drawn as a live overlay during playback
+4. Optionally, the overlay is baked into a new MP4 for saving or sharing
 
-- Real-time video streaming support
+## Architecture Evolution
+
+The first version processed videos in the cloud: the app uploaded raw footage to Firebase Storage, a FastAPI service pulled it down, ran YOLOv11 + OpenCV, and wrote the processed video back for the app to download.
+
+It worked, but every lift meant uploading a full video, waiting on a server, and downloading the result. Moving inference on-device (ONNX Runtime + Skia) makes analysis faster, works offline, keeps footage private and eliminates server costs. The FastAPI service remains in `backend/` as the reference implementation the on-device tracker was ported from.
+
+## Running the App
+
+```bash
+cd barPathApp
+npm install
+npx expo run:ios       # or: npx expo run:android
+```
+
+## Potential Future Features
+
 - Rep counting and velocity tracking
 - Visual dashboard with bar path analytics
 - Form scoring and recommendations using pose estimation
 - Social sharing and personal progress tracking
+- App Store / Google Play release
 
 ## Key Learnings
 
-### Computer Vision
+### Computer Vision & On-Device ML
 
-- Integrated OpenCV with YOLOv11 for barbell detection
-- Developed frame-by-frame analysis and visual path overlay
+- Ported a Python/OpenCV tracking pipeline to TypeScript running on ONNX Runtime
+- Developed frame-by-frame analysis and visual path overlay with Skia
 - Tuned detection thresholds for optimal accuracy on fitness footage
 
-### Full-Stack Development
+### Mobile Development
 
-- Created REST API using FastAPI for video handling and processing
-- Built a mobile interface in React Native with TypeScript
-- Handled upload progress, authentication state and result display
+- Built a cross-platform app with React Native, Expo Router, and TypeScript
+- Worked with native modules, custom dev builds, and the React Native New Architecture
+- Handled video decoding, playback, and on-device MP4 export
 
-### Cloud and Deployment
+### Cloud & Architecture
 
-- Implemented Firebase Authentication and secure storage access
-- Used Firestore to manage metadata for user libraries
-- Configured CORS and token-based access between mobile and backend
-
-## What Worked Well
-
-- Modular development allowed independent testing of AI, API, and frontend
-- Firebase simplified infrastructure management and reduced backend overhead
-- Achieved smooth video processing flow from upload to playback
-- Developed intuitive UI with clear progress and error feedback
-
-## Planned Improvements
-
-- Add background job orchestration with Firebase functions
-- Implement Docker-based deployment pipeline
-
-## Impact
-
-- Developed and deployed a full mobile application powered by computer vision
-- Processes real-world videos and provides valuable motion analysis
-- Handles real data, users and network variability in production
-- Provides a foundation for future fitness-focused computer vision tools
+- Designed and shipped a full cloud-processing pipeline (FastAPI + Firebase), then migrated it on-device
+- Implemented Firebase Authentication and secure, per-user storage access
+- Learned the trade-offs between server-side and edge inference: latency, cost, privacy, and offline support
