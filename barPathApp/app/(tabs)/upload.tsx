@@ -24,7 +24,7 @@ export default function HomeScreen() {
     try {
       setOpening(true);
       const result = await VideoPicker.launchImageLibraryAsync({
-        mediaTypes: VideoPicker.MediaTypeOptions.Videos,
+        mediaTypes: ['videos'],
         quality: 1,
       });
 
