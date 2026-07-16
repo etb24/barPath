@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { auth, onAuthStateChanged } from '../services/FirebaseConfig'; // or "@/services/FirebaseConfig"
 import type { User } from '@react-native-firebase/auth';
+import { colors } from '@/styles/theme';
 
 export default function RootLayout() {
   const [initializing, setInitializing] = useState(true);
@@ -37,8 +38,8 @@ export default function RootLayout() {
 
   if (initializing) {
     return (
-      <View style={{ flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'#121212' }}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={{ flex:1, justifyContent:'center', alignItems:'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.textPrimary} />
       </View>
     );
   }

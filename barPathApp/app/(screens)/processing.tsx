@@ -62,11 +62,13 @@ export default function ProcessingScreen() {
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.accent} />
         <Typography variant="subtitle" weight="bold" style={styles.title}>
-          Analyzing your lift…
+          Processing…
         </Typography>
-        <Typography variant="body" color={colors.textSecondary} style={styles.copy}>
-          Tracking the barbell on-device, frame by frame. {percentage > 0 ? `${percentage}%` : ''}
-        </Typography>
+        {percentage > 0 && (
+          <Typography variant="body" color={colors.textSecondary} style={styles.copy}>
+            {percentage}%
+          </Typography>
+        )}
       </View>
     </Screen>
   );

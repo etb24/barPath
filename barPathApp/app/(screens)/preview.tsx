@@ -169,8 +169,13 @@ export default function PreviewScreen() {
           </View>
         </View>
 
-        <Pressable onPress={togglePlay} style={styles.playButton}>
-          <Text style={styles.playText}>{playing ? '❚❚ Pause' : '▶ Play'}</Text>
+        <Pressable
+          onPress={togglePlay}
+          style={styles.playButton}
+          accessibilityRole="button"
+          accessibilityLabel={playing ? 'Pause' : 'Play'}
+        >
+          <Text style={styles.playText}>{playing ? 'Pause' : 'Play'}</Text>
         </Pressable>
 
         <View style={styles.saveRow}>
@@ -212,12 +217,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     alignItems: 'center',
   },
-  // border lives on the OUTER wrapper so the measured inner box is the exact video content rect (a border would offset/scale the overlay)
+  // any framing stays on the OUTER wrapper so the measured inner box is the exact video content rect (a border here would offset/scale the overlay)
   videoOuter: {
     width: '100%',
     borderRadius: radii.lg,
-    borderWidth: 4,
-    borderColor: colors.accent,
     overflow: 'hidden',
     backgroundColor: '#000',
     marginBottom: spacing.md,

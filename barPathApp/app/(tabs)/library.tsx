@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Alert, Dimensions, Image, ActivityIndicator, Platform, Pressable, ActionSheetIOS, } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from 'expo-router';
@@ -9,8 +9,6 @@ import { Feather } from '@expo/vector-icons';
 import PreviewModal from '../components/PreviewModal';
 import type { Position } from '../../features/tracking/types';
 import Screen from '../components/ui/Screen';
-import Card from '../components/ui/Card';
-import Pill from '../components/ui/Pill';
 import Typography from '../components/ui/Typography';
 import { colors, spacing, radii } from '@/styles/theme';
 
@@ -40,16 +38,7 @@ export default function LibraryScreen() {
   const [selected, setSelected] = useState<VideoItem | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // UI helpers
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = useCallback(async () => {
-    // small UX pause
-    setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 450));
-    setRefreshing(false);
-  }, []);
 
   const sortedVideos = useMemo(() => {
     const arr = [...videos];
@@ -317,7 +306,7 @@ export default function LibraryScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} size="large" />
           <Typography variant="body" color={colors.textSecondary} style={{ marginTop: spacing.sm }}>
-            Fetching your recent lifts…
+            Loading…
           </Typography>
         </View>
       );
@@ -326,23 +315,17 @@ export default function LibraryScreen() {
     if (videos.length === 0) {
       return (
         <View style={styles.center}>
-          <Card tone="secondary" style={styles.emptyCard}>
-            <Pill label="Library" tone="accent" />
-            <Typography variant="title" weight="black">
-              No saved videos yet
+          <Typography variant="body" color={colors.textSecondary}>
+            No saved videos yet
+          </Typography>
+          <Pressable
+            onPress={() => router.push('/')}
+            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+          >
+            <Typography variant="subtitle" weight="bold" color={colors.background}>
+              Upload a video
             </Typography>
-            <Typography variant="body" color={colors.textSecondary} style={styles.emptyCopy}>
-              Upload a lift to analyze it with AI overlays and see it saved here for review.
-            </Typography>
-            <Pressable
-              onPress={() => router.push('/upload')}
-              style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
-            >
-              <Typography variant="subtitle" weight="bold" color={colors.background}>
-                Upload a lift
-              </Typography>
-            </Pressable>
-          </Card>
+          </Pressable>
         </View>
       );
     }
@@ -356,8 +339,6 @@ export default function LibraryScreen() {
         columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
         removeClippedSubviews
         initialNumToRender={8}
         windowSize={7}
@@ -369,12 +350,8 @@ export default function LibraryScreen() {
     <Screen>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Pill label="Library" tone="accent" uppercase />
-          <Typography variant="hero" weight="black" style={styles.title}>
-            Your analyzed lifts
-          </Typography>
-          <Typography variant="body" color={colors.textSecondary} style={styles.subtitle}>
-            Sort and revisit saved sets, export clips, and keep your training archive organized.
+          <Typography variant="title" weight="bold" style={styles.title}>
+            Library
           </Typography>
           <View style={styles.sortChips}>
             <Pressable
@@ -419,18 +396,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: HORIZONTAL_PADDING,
     paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
     backgroundColor: colors.background,
   },
   header: {
     gap: spacing.md,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   title: {
     color: colors.textPrimary,
-  },
-  subtitle: {
-    lineHeight: 22,
   },
   sortChips: {
     flexDirection: 'row',
@@ -453,15 +426,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
-  emptyCard: {
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xl,
-  },
-  emptyCopy: {
-    textAlign: 'center',
-    lineHeight: 22,
-  },
   cta: {
     backgroundColor: colors.accent,
     borderRadius: radii.md,
@@ -473,7 +437,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   listContent: {
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xl,
     paddingHorizontal: 0,
   },
   columnWrapper: {
@@ -488,15 +452,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     borderColor: colors.border,
     borderWidth: StyleSheet.hairlineWidth,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.18,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-      },
-      android: { elevation: 2 },
-    }),
   },
   thumb: {
     width: THUMB_SIZE,

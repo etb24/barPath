@@ -7,9 +7,9 @@ export const colors = {
   textPrimary: '#FFFFFF',
   textSecondary: '#CFCFCF',
   textMuted: '#9A9A9A',
-  accent: '#C2FD4E',
-  accentMuted: 'rgba(194, 253, 78, 0.18)',
-  accentStrong: '#D8FF8B',
+  accent: '#5B9DFF',
+  accentMuted: 'rgba(91, 157, 255, 0.18)',
+  accentStrong: '#8FBEFF',
   destructive: '#FF4444',
   warning: '#FFB347',
   success: '#6CFF8A',
@@ -61,42 +61,3 @@ export const typography = {
     letterSpacing: 0.2,
   },
 };
-
-export const shadow = {
-  card: {
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 10,
-  },
-};
-
-export const gradients = {
-  hero: ['#12151d', '#12151d', '#181d29'],
-  accentGlow: [
-    'rgba(158, 255, 82, 0.18)',
-    'rgba(158, 255, 82, 0.04)',
-    'rgba(18, 22, 33, 0)',
-  ],
-};
-
-export const layout = {
-  screenPadding: {
-    top: spacing.xl,
-    horizontal: spacing.lg,
-    bottom: spacing.xl,
-  },
-};
-
-export const theme = {
-  colors,
-  radii,
-  spacing,
-  typography,
-  shadow,
-  gradients,
-  layout,
-};
-
-export type Theme = typeof theme;

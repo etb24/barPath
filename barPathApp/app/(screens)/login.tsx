@@ -5,9 +5,8 @@ import { signInWithCredential, GoogleAuthProvider } from '@react-native-firebase
 import { GoogleSignin, GoogleSigninButton, statusCodes } from '@react-native-google-signin/google-signin';
 import { auth } from '../../services/FirebaseConfig';
 import Screen from '../components/ui/Screen';
-import Card from '../components/ui/Card';
 import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '@/styles/theme';
+import { colors, spacing } from '@/styles/theme';
 
 const GOOGLE_WEB_CLIENT_ID = Constants.expoConfig?.extra?.googleWebClientId as string | undefined;
 
@@ -47,51 +46,28 @@ export default function Login() {
   return (
     <Screen>
       <View style={styles.container}>
-        <View style={styles.hero}>
-          <Typography variant="title" weight="black" color={colors.accent} style={styles.brand}>
-            barPath.io
-          </Typography>
-          <View style={styles.logoBadge}>
-            <Image
-              source={LOGO}
-              style={styles.logoImage}
-              resizeMode="contain"
-              accessible
-              accessibilityLabel="BarPath logo"
-            />
-          </View>
-          <Typography variant="hero" weight="black" style={styles.title}>
-            Track smarter, lift safer
-          </Typography>
-          <Typography variant="body" color={colors.textSecondary} style={styles.subtitle}>
-            Sign in to sync your bar path analyses and view your training archive on any device.
-          </Typography>
-        </View>
-
-        <Card style={styles.card}>
-          <GoogleSigninButton
-            style={styles.googleButton}
-            size={GoogleSigninButton.Size.Wide}
-            color={GoogleSigninButton.Color.Dark}
-            onPress={onGoogleButtonPress}
-            disabled={loading}
-            accessibilityLabel="Sign in with Google"
-            testID="google-signin-button"
-          />
-
-          {loading && <ActivityIndicator style={{ marginTop: spacing.md }} color={colors.accent} />}
-
-          <Typography variant="caption" color={colors.textMuted} style={styles.legal}>
-            By continuing you agree to our{' '}
-            <Typography variant="caption" color={colors.textSecondary}>Terms</Typography>
-            {' & '}
-            <Typography variant="caption" color={colors.textSecondary}>Privacy</Typography>.
-          </Typography>
-        </Card>
-
-        <Typography variant="caption" color={colors.textMuted} style={styles.footer}>
-          Made for lifters • v1.0
+        <Image
+          source={LOGO}
+          style={styles.logo}
+          resizeMode="contain"
+          accessible
+          accessibilityLabel="BarPath logo"
+        />
+        <Typography variant="title" weight="black">
+          barPath.io
         </Typography>
+
+        <GoogleSigninButton
+          style={styles.googleButton}
+          size={GoogleSigninButton.Size.Wide}
+          color={GoogleSigninButton.Color.Dark}
+          onPress={onGoogleButtonPress}
+          disabled={loading}
+          accessibilityLabel="Sign in with Google"
+          testID="google-signin-button"
+        />
+
+        {loading && <ActivityIndicator color={colors.accent} />}
       </View>
     </Screen>
   );
@@ -101,58 +77,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
     justifyContent: 'center',
+    alignItems: 'center',
     gap: spacing.lg,
   },
-  hero: {
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  brand: {
-    letterSpacing: 1,
-  },
-  logoBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  // new image style
-  logoImage: {
-    width: 40,
-    height: 40,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  subtitle: {
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  card: {
-    width: '100%',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-    alignItems: 'center',
+  logo: {
+    width: 64,
+    height: 64,
   },
   googleButton: {
     width: '100%',
-    height: 48,
-    borderRadius: 22,
-    alignSelf: 'center',
     maxWidth: 240,
-  },
-  legal: {
-    textAlign: 'center',
-  },
-  footer: {
-    textAlign: 'center',
+    height: 48,
   },
 });
