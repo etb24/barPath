@@ -1,3 +1,4 @@
+//LEGACY: This file is a legacy API wrapper for the old Firebase Storage + FastAPI backend. It is used by the old video processing flow, which is being replaced by the new VideoProcessingService.ts. The new service uses the new File/Paths class API from expo-file-system v19, and does not require Firebase Storage or FastAPI. This file will be removed once the new service is fully implemented and tested.
 // expo-file-system v19 moved the function API to /legacy; TODO migrate to the new File/Paths class API
 import * as FileSystem from 'expo-file-system/legacy';
 import { getAuth } from '@react-native-firebase/auth';
