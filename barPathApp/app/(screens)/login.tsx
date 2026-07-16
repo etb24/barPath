@@ -7,7 +7,7 @@ import { auth } from '../../services/FirebaseConfig';
 import Screen from '../components/ui/Screen';
 import Card from '../components/ui/Card';
 import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '../styles/theme';
+import { colors, spacing, radii } from '@/styles/theme';
 
 const GOOGLE_WEB_CLIENT_ID = Constants.expoConfig?.extra?.googleWebClientId as string | undefined;
 

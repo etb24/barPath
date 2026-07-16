@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { auth, onAuthStateChanged } from '../services/FirebaseConfig'; // or "@/services/FirebaseConfig"
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import type { User } from '@react-native-firebase/auth';
 
 export default function RootLayout() {
   const [initializing, setInitializing] = useState(true);
-  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const segments = useSegments();
 

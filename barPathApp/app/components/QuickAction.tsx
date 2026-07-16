@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, View, StyleSheet, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Typography from './ui/Typography';
-import { colors, radii, spacing, shadow } from '../styles/theme';
+import { colors, radii, spacing, shadow } from '@/styles/theme';
 
 export type QuickActionProps = {
   title: string;

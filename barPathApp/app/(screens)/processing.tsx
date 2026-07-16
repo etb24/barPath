@@ -5,7 +5,7 @@ import { BarbellTracker } from '../../features/tracking/tracker';
 import { setHandoff } from '../../features/tracking/handoff';
 import Screen from '../components/ui/Screen';
 import Typography from '../components/ui/Typography';
-import { colors, spacing } from '../styles/theme';
+import { colors, spacing } from '@/styles/theme';
 
 export default function ProcessingScreen() {
   const { inputUri, liftName, duration, width, height } = useLocalSearchParams<{

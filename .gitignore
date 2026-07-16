@@ -6,3 +6,5 @@ credentials/
 serviceAccount*.json
 .env
 .env.*
+AGENTS.md
+CLAUDE.md
