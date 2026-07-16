@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View, StyleSheet, TextStyle, ViewStyle } from 'react-native';
-import { colors, radii, spacing, typography } from '../../styles/theme';
+import { colors, radii, spacing, typography } from '@/styles/theme';
 
 type PillProps = {
   label: string;

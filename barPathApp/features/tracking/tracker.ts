@@ -2,7 +2,8 @@
 // UI-free: takes a video URI, returns the bar path. No React/navigation here.
 import { getThumbnailAsync } from 'expo-video-thumbnails';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
+// expo-file-system v19 moved the function API to /legacy; TODO migrate to the new File/Paths class API
+import * as FileSystem from 'expo-file-system/legacy';
 import { InferenceSession, Tensor } from 'onnxruntime-react-native';
 import { Skia, ColorType, AlphaType } from '@shopify/react-native-skia';
 import { toByteArray } from 'base64-js';

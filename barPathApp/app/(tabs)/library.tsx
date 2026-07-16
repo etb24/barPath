@@ -3,10 +3,8 @@ import { View, Text, FlatList, StyleSheet, Alert, Dimensions, Image, ActivityInd
 import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from 'expo-router';
 import { bakeVideo } from '../../services/bake';
-import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, deleteDoc, deleteObject, getDownloadURL, } from '../../services/FirebaseConfig';
-import { QueryDocumentSnapshot } from '@firebase/firestore-types';
+import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, updateDoc, deleteDoc, deleteObject, getDownloadURL, } from '../../services/FirebaseConfig';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
-import firestore from '@react-native-firebase/firestore';
 import { Feather } from '@expo/vector-icons';
 import PreviewModal from '../components/PreviewModal';
 import type { Position } from '../../features/tracking/types';
@@ -14,7 +12,7 @@ import Screen from '../components/ui/Screen';
 import Card from '../components/ui/Card';
 import Pill from '../components/ui/Pill';
 import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '../styles/theme';
+import { colors, spacing, radii } from '@/styles/theme';
 
 interface VideoItem {
   id: string;
@@ -85,7 +83,7 @@ export default function LibraryScreen() {
         setLoading((prev) => prev && videos.length === 0);
 
         const results = await Promise.allSettled<VideoItem>(
-          snapshot.docs.map(async (doc: QueryDocumentSnapshot<any>) => {
+          snapshot.docs.map(async (doc) => {
             const data = doc.data();
             const videoBlobPath = String(data.videoBlobPath || '');
 
@@ -233,12 +231,10 @@ export default function LibraryScreen() {
               if (typeof newName !== 'string' || !newName.trim()) return;
               try {
                 if (!user) throw new Error('User not authenticated');
-                await firestore()
-                  .collection('users')
-                  .doc(user.uid)
-                  .collection('videos')
-                  .doc(item.id)
-                  .update({ liftName: newName });
+                await updateDoc(
+                  doc(db, 'users', user.uid, 'videos', item.id),
+                  { liftName: newName },
+                );
 
                 setVideos((vs) =>
                   vs.map((v) => (v.id === item.id ? { ...v, liftName: newName } : v))

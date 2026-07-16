@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TextProps, TextStyle } from 'react-native';
-import { typography, colors } from '../../styles/theme';
+import { typography, colors } from '@/styles/theme';
 
 type Variant = 'hero' | 'title' | 'subtitle' | 'body' | 'caption';
 

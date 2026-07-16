@@ -1,6 +1,7 @@
 // On-device bake: burn the bar path into a shareable MP4 using the phone's own hardware video encoder
 // The drawn trail is produced by the same band math as the in-app Skia overlay (features/tracking/pathBands)
-import * as FileSystem from 'expo-file-system';
+// expo-file-system v19 moved the function API to /legacy; TODO migrate to the new File/Paths class API
+import * as FileSystem from 'expo-file-system/legacy';
 import { getThumbnailAsync } from 'expo-video-thumbnails';
 import { Platform } from 'react-native';
 import {

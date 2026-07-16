@@ -1,16 +1,18 @@
 import React, { useMemo, useState } from 'react';
+import { useEventListener } from 'expo';
 import {
-  Modal, View, TouchableOpacity, ActivityIndicator, StyleSheet, SafeAreaView,
+  Modal, View, TouchableOpacity, ActivityIndicator, StyleSheet,
   type LayoutChangeEvent,
 } from 'react-native';
-import { Video, ResizeMode, type AVPlaybackStatus, type VideoReadyForDisplayEvent } from 'expo-av';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { computeContentRect, PathOverlayLayer } from '../../features/tracking/videoOverlay';
 import type { Position } from '../../features/tracking/types';
 import Typography from './ui/Typography';
-import { colors, spacing, radii } from '../styles/theme';
+import { colors, spacing, radii } from '@/styles/theme';
 
-export default function libraryModal({
+export default function LibraryModal({
   visible,
   item,
   busy,
@@ -36,6 +38,24 @@ export default function libraryModal({
     [layout, videoAspect],
   );
 
+  // expo-video player; recreated (and setup re-run) when the source url changes
+  const player = useVideoPlayer(item?.url ? { uri: item.url } : null, (p) => {
+    p.loop = true;
+    p.timeUpdateEventInterval = 0.03; // ~30ms, matches the old progressUpdateIntervalMillis
+    p.play();
+  });
+
+  // drive the overlay off playback time (seconds -> ms)
+  useEventListener(player, 'timeUpdate', ({ currentTime }) => {
+    setCurrentTimeMs(currentTime * 1000);
+  });
+
+  // true video aspect ratio, from the loaded source's video track
+  useEventListener(player, 'sourceLoad', ({ availableVideoTracks }) => {
+    const size = availableVideoTracks[0]?.size;
+    if (size?.width && size?.height) setVideoAspect(size.width / size.height);
+  });
+
   if (!visible || !item) {
     return null;
   }
@@ -56,21 +76,11 @@ export default function libraryModal({
         <SafeAreaView style={styles.container}>
 
           <View style={styles.videoWrap} onLayout={onVideoLayout}>
-            <Video
-              source={{ uri: item.url }}
+            <VideoView
+              player={player}
               style={StyleSheet.absoluteFill}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay
-              isLooping
-              progressUpdateIntervalMillis={30}
-              onReadyForDisplay={(e: VideoReadyForDisplayEvent) => {
-                const { width, height } = e.naturalSize;
-                if (width && height) setVideoAspect(width / height);
-              }}
-              onPlaybackStatusUpdate={(s: AVPlaybackStatus) => {
-                if (s.isLoaded) setCurrentTimeMs(s.positionMillis);
-              }}
+              nativeControls
+              contentFit="contain"
             />
             <PathOverlayLayer positions={item.path} currentTimeMs={currentTimeMs} rect={rectangle} />
           </View>

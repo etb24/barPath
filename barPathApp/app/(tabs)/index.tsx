@@ -9,7 +9,7 @@ import Screen from '../components/ui/Screen';
 import Card from '../components/ui/Card';
 import Pill from '../components/ui/Pill';
 import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '../styles/theme';
+import { colors, spacing, radii } from '@/styles/theme';
 
 // enable layout animation on Android (for accordion)
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {

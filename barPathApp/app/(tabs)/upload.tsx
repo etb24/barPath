@@ -7,7 +7,7 @@ import Screen from '../components/ui/Screen';
 import Card from '../components/ui/Card';
 import Pill from '../components/ui/Pill';
 import Typography from '../components/ui/Typography';
-import { colors, spacing, radii, shadow } from '../styles/theme';
+import { colors, spacing, radii, shadow } from '@/styles/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function HomeScreen() {
     try {
       setOpening(true);
       const result = await VideoPicker.launchImageLibraryAsync({
-        mediaTypes: VideoPicker.MediaTypeOptions.Videos,
+        mediaTypes: ['videos'],
         quality: 1,
       });
 

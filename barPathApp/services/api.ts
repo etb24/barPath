@@ -1,4 +1,5 @@
-import * as FileSystem from 'expo-file-system';
+// expo-file-system v19 moved the function API to /legacy; TODO migrate to the new File/Paths class API
+import * as FileSystem from 'expo-file-system/legacy';
 import { getAuth } from '@react-native-firebase/auth';
 import { ref as storageRef, putFile } from '@react-native-firebase/storage';
 import { storageDb } from './FirebaseConfig';

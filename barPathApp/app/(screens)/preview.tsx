@@ -4,7 +4,8 @@ import {
   TouchableOpacity, ActivityIndicator, Pressable, Text,
   type LayoutChangeEvent,
 } from 'react-native';
-import { Video, ResizeMode, type AVPlaybackStatus, type VideoReadyForDisplayEvent } from 'expo-av';
+import { useEvent, useEventListener } from 'expo';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import {
@@ -21,7 +22,7 @@ import { getHandoff, clearHandoff } from '../../features/tracking/handoff';
 import type { Position } from '../../features/tracking/types';
 import Screen from '../components/ui/Screen';
 import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '../styles/theme';
+import { colors, spacing, radii } from '@/styles/theme';
 
 // Firestore doc limit is 1MB; keep the stored path well under it. A short lift at
 // 10fps is ~50-200 points, so this only ever trips on unusually long clips.
@@ -51,14 +52,33 @@ export default function PreviewScreen() {
   );
   const [layout, setLayout] = useState({ w: 0, h: 0 }); // measured content box of the video container
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
-  const [playing, setPlaying] = useState(true);
-  const videoRef = useRef<Video>(null);
+
+  // expo-video player; source is stable for the screen's lifetime
+  const player = useVideoPlayer({ uri: handoff?.videoUri ?? '' }, (p) => {
+    p.loop = false;
+    p.timeUpdateEventInterval = 0.03; // ~30ms, matches the old progressUpdateIntervalMillis
+    p.play();
+  });
+
+  // play/pause label state, kept in sync by the player itself (also flips when the clip ends)
+  const { isPlaying: playing } = useEvent(player, 'playingChange', { isPlaying: player.playing });
 
   // align the overlay to the video's real displayed rect (letterbox-aware)
   const rect = useMemo(
     () => computeContentRect(layout.w, layout.h, videoAspect),
     [layout, videoAspect],
   );
+
+  // drive the overlay off playback time (seconds -> ms)
+  useEventListener(player, 'timeUpdate', ({ currentTime }) => {
+    setCurrentTimeMs(currentTime * 1000);
+  });
+
+  // refine the aspect ratio from the loaded source's video track
+  useEventListener(player, 'sourceLoad', ({ availableVideoTracks }) => {
+    const size = availableVideoTracks[0]?.size;
+    if (size?.width && size?.height) setVideoAspect(size.width / size.height);
+  });
 
   // release the handoff when leaving the preview
   useEffect(() => clearHandoff, []);
@@ -78,15 +98,13 @@ export default function PreviewScreen() {
     if (width && height) setLayout({ w: width, h: height });
   };
 
-  const togglePlay = async () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (playing) { setPlaying(false); return; }
-    const s = await video.getStatusAsync();
-    if (s.isLoaded && s.durationMillis && s.positionMillis >= s.durationMillis - 100) {
-      await video.setPositionAsync(0);
+  const togglePlay = () => {
+    if (player.playing) { player.pause(); return; }
+    // if at/near the end, restart from the beginning (replay)
+    if (player.duration && player.currentTime >= player.duration - 0.1) {
+      player.currentTime = 0;
     }
-    setPlaying(true);
+    player.play();
   };
 
   const saveToLibrary = async () => {
@@ -137,24 +155,11 @@ export default function PreviewScreen() {
       <View style={styles.container}>
         <View style={styles.videoOuter}>
           <View style={[styles.videoInner, { aspectRatio: videoAspect }]} onLayout={onVideoLayout}>
-            <Video
-              ref={videoRef}
-              source={{ uri: handoff.videoUri }}
+            <VideoView
+              player={player}
               style={StyleSheet.absoluteFill}
-              shouldPlay={playing}
-              isLooping={false}
-              resizeMode={ResizeMode.CONTAIN}
-              progressUpdateIntervalMillis={30}
-              onReadyForDisplay={(e: VideoReadyForDisplayEvent) => {
-                const { width, height } = e.naturalSize;
-                if (width && height) setVideoAspect(width / height);
-              }}
-              onPlaybackStatusUpdate={(s: AVPlaybackStatus) => {
-                if (s.isLoaded) {
-                  setCurrentTimeMs(s.positionMillis);
-                  if (s.didJustFinish) setPlaying(false);
-                }
-              }}
+              nativeControls={false}
+              contentFit="contain"
             />
             <PathOverlayLayer
               positions={handoff.positions}
