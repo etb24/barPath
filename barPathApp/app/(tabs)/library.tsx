@@ -25,7 +25,7 @@ interface VideoItem {
 }
 
 const { width } = Dimensions.get('window');
-const HORIZONTAL_PADDING = 32;
+const HORIZONTAL_PADDING = 16;
 const GUTTER = 16;
 const THUMB_SIZE = (width - (HORIZONTAL_PADDING * 2) - GUTTER) / 2;
 
