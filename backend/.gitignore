@@ -1,9 +1,0 @@
-.env
-/models
-/credentials
-/test-videos
-/.venv
-*.mov
-*.mp4
-__pycache__/
-*.pyc
