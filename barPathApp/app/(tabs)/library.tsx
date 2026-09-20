@@ -1,54 +1,106 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Alert, Dimensions, Image, ActivityIndicator, Platform, Pressable, ActionSheetIOS, } from 'react-native';
+import {
+  ActionSheetIOS,
+  Alert,
+  FlatList,
+  Platform,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from 'expo-router';
-import { bakeVideo } from '../../services/bake';
-import { auth, db, collection, onSnapshot, query, orderBy, storageDb, storageRef, doc, updateDoc, deleteDoc, deleteObject, getDownloadURL, } from '../../services/FirebaseConfig';
-import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
-import { Feather } from '@expo/vector-icons';
-import PreviewModal from '../components/PreviewModal';
-import type { Position } from '../../features/tracking/types';
-import Screen from '../components/ui/Screen';
-import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '@/styles/theme';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import { bakeVideo } from '@/services/bake';
+import {
+  auth,
+  db,
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  storageDb,
+  storageRef,
+  doc,
+  updateDoc,
+  deleteDoc,
+  deleteObject,
+  getDownloadURL,
+} from '@/services/FirebaseConfig';
+import type { Position } from '@/features/tracking/types';
+import LibraryCard, { LibraryCardSkeleton } from '@/components/LibraryCard';
+import LibraryDetailModal from '@/components/LibraryDetailModal';
+import EmptyState from '@/components/ui/EmptyState';
+import Screen from '@/components/ui/Screen';
+import ScreenHeader from '@/components/ui/ScreenHeader';
+import SegmentedControl, { type SegmentedOption } from '@/components/ui/SegmentedControl';
+import { layout, spacing } from '@/styles/theme';
 
 interface VideoItem {
   id: string;
-  videoBlobPath: string;      // original video in Storage
-  url: string;                // download URL for the original video
+  videoBlobPath: string; // original video in Storage
+  url: string; // download URL for the original video
   thumbnailUrl: string;
   liftName: string;
-  path: Position[];           // normalized bar path, rendered as a live overlay
-  fps: number;                // sampling fps + frame count drive on-device baking
+  path: Position[]; // normalized bar path, rendered as a live overlay
+  fps: number; // sampling fps + frame count drive on-device baking
   frameCount: number;
   createdAt: FirebaseFirestoreTypes.Timestamp;
 }
 
-const { width } = Dimensions.get('window');
-const HORIZONTAL_PADDING = 16;
-const GUTTER = 16;
-const THUMB_SIZE = (width - (HORIZONTAL_PADDING * 2) - GUTTER) / 2;
+type SortKey = 'recent' | 'name';
+
+const SORT_OPTIONS: readonly SegmentedOption<SortKey>[] = [
+  { value: 'recent', label: 'Recent' },
+  { value: 'name', label: 'Name' },
+];
+const TAB_EDGES = ['top'] as const;
+const COLUMNS = 2;
+const GUTTER = spacing.sm;
+const SKELETON_IDS = ['skeleton-0', 'skeleton-1', 'skeleton-2', 'skeleton-3'];
+const PHOTOS_ALBUM = 'BarbellTracker';
+const DEFAULT_FPS = 10;
+
+function formatDate(timestamp?: FirebaseFirestoreTypes.Timestamp): string {
+  try {
+    const date = timestamp?.toDate?.() ?? new Date();
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+function liftCountLabel(count: number): string {
+  return count === 1 ? '1 lift' : `${count} lifts`;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Please try again.';
+}
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const tabBarHeight = useBottomTabBarHeight();
+  const { width: windowWidth } = useWindowDimensions();
   const user = auth.currentUser;
 
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<VideoItem | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sort, setSort] = useState<SortKey>('recent');
 
-  const [sort, setSort] = useState<'recent' | 'name'>('recent');
+  // Tiles are sized from the live window width, so rotation and tablets get a correct grid
+  const cardWidth = (windowWidth - layout.screenPadding * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
+  const bottomInset = useMemo(() => ({ paddingBottom: tabBarHeight + spacing.lg }), [tabBarHeight]);
 
   const sortedVideos = useMemo(() => {
-    const arr = [...videos];
+    const items = [...videos];
     if (sort === 'name') {
-      return arr.sort((a, b) => (a.liftName || '').localeCompare(b.liftName || ''));
+      return items.sort((a, b) => (a.liftName || '').localeCompare(b.liftName || ''));
     }
-    return arr.sort(
-      (a, b) =>
-        (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0)
-    );
+    return items.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
   }, [videos, sort]);
 
   // Firestore subscription
@@ -61,19 +113,14 @@ export default function LibraryScreen() {
       return;
     }
 
-    const videosQuery = query(
-      collection(db, 'users', user.uid, 'videos'),
-      orderBy('createdAt', 'desc')
-    );
+    const videosQuery = query(collection(db, 'users', user.uid, 'videos'), orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(
       videosQuery,
       async (snapshot) => {
-        setLoading((prev) => prev && videos.length === 0);
-
         const results = await Promise.allSettled<VideoItem>(
-          snapshot.docs.map(async (doc) => {
-            const data = doc.data();
+          snapshot.docs.map(async (videoDoc) => {
+            const data = videoDoc.data();
             const videoBlobPath = String(data.videoBlobPath || '');
 
             if (!videoBlobPath.startsWith(`${user.uid}/`)) {
@@ -83,33 +130,28 @@ export default function LibraryScreen() {
             const url = await getDownloadURL(storageRef(storageDb, videoBlobPath));
 
             return {
-              id: doc.id,
+              id: videoDoc.id,
               videoBlobPath,
               url,
               thumbnailUrl: data.thumbnailUrl ?? '',
               liftName: data.liftName ?? 'Untitled',
               path: Array.isArray(data.path) ? (data.path as Position[]) : [],
-              fps: Number(data.fps) || 10,
+              fps: Number(data.fps) || DEFAULT_FPS,
               frameCount: Number(data.frameCount) || 0,
               createdAt: data.createdAt,
             } as VideoItem;
-          })
+          }),
         );
 
         const items: VideoItem[] = [];
         let hadErrors = false;
 
-        results.forEach((r, i) => {
-          if (r.status === 'fulfilled') items.push(r.value);
-          else {
+        results.forEach((result, i) => {
+          if (result.status === 'fulfilled') {
+            items.push(result.value);
+          } else {
             hadErrors = true;
-            const badDoc = snapshot.docs[i];
-            console.warn(
-              'getDownloadURL failed',
-              badDoc.id,
-              badDoc.data()?.blobPath,
-              r.reason
-            );
+            console.warn('getDownloadURL failed', snapshot.docs[i].id, result.reason);
           }
         });
 
@@ -120,17 +162,17 @@ export default function LibraryScreen() {
           Alert.alert('Some videos couldn’t be loaded', 'Please try again later.');
         }
       },
-      (error: any) => {
+      (error: { code?: string; message: string }) => {
         const signedOut = !auth.currentUser;
         if (signedOut && error?.code === 'permission-denied') return;
         console.error(error);
         setLoading(false);
         Alert.alert('Error', error.message);
-      }
+      },
     );
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user]);
 
   // action functions
 
@@ -143,7 +185,7 @@ export default function LibraryScreen() {
           { text: 'Cancel', style: 'cancel' },
           { text: 'Delete', style: 'destructive', onPress: () => handleDelete(item, true) },
         ],
-        { cancelable: true }
+        { cancelable: true },
       );
     }
 
@@ -152,24 +194,21 @@ export default function LibraryScreen() {
       if (!user) throw new Error('User not authenticated');
 
       // delete the MP4
-      const vidRef = storageRef(storageDb, item.videoBlobPath);
-      await deleteObject(vidRef).catch((e) => {
+      await deleteObject(storageRef(storageDb, item.videoBlobPath)).catch((e) => {
         if (e.code !== 'storage/object-not-found') throw e;
       });
 
       // delete the thumbnail
-      const thumbRef = storageRef(storageDb, `${user.uid}/thumbs/${item.id}.jpg`);
-      await deleteObject(thumbRef).catch((e) => {
+      await deleteObject(storageRef(storageDb, `${user.uid}/thumbs/${item.id}.jpg`)).catch((e) => {
         if (e.code !== 'storage/object-not-found') throw e;
       });
 
       // delete Firestore doc
-      const docRef = doc(db, 'users', user.uid, 'videos', item.id);
-      await deleteDoc(docRef);
+      await deleteDoc(doc(db, 'users', user.uid, 'videos', item.id));
 
       Alert.alert('Deleted', 'Video removed from your library.');
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+    } catch (error: unknown) {
+      Alert.alert('Delete failed', errorMessage(error));
     } finally {
       setBusy(false);
       setSelected(null);
@@ -192,69 +231,67 @@ export default function LibraryScreen() {
       });
 
       const asset = await MediaLibrary.createAssetAsync(localUri);
-      const album = await MediaLibrary.getAlbumAsync('BarbellTracker');
+      const album = await MediaLibrary.getAlbumAsync(PHOTOS_ALBUM);
       if (album == null) {
-        await MediaLibrary.createAlbumAsync('BarbellTracker', asset, false);
+        await MediaLibrary.createAlbumAsync(PHOTOS_ALBUM, asset, false);
       } else {
         await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
       }
 
-      Alert.alert('Saved', 'Video with bar path saved to your camera roll!');
-    } catch (e: any) {
-      Alert.alert('Save failed', e.message);
+      Alert.alert('Saved', 'Video with bar path saved to your camera roll.');
+    } catch (error: unknown) {
+      Alert.alert('Save failed', errorMessage(error));
     } finally {
       setBusy(false);
     }
   }
 
   function openRename(item: VideoItem) {
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Rename Video',
-        'Enter a new name for your video',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Save',
-            onPress: async (newName?: string) => {
-              if (typeof newName !== 'string' || !newName.trim()) return;
-              try {
-                if (!user) throw new Error('User not authenticated');
-                await updateDoc(
-                  doc(db, 'users', user.uid, 'videos', item.id),
-                  { liftName: newName },
-                );
-
-                setVideos((vs) =>
-                  vs.map((v) => (v.id === item.id ? { ...v, liftName: newName } : v))
-                );
-                setSelected(null);
-              } catch (e: any) {
-                Alert.alert('Rename failed', e.message);
-              }
-            },
-          },
-        ],
-        'plain-text',
-        item.liftName
-      );
+    if (Platform.OS !== 'ios') {
+      Alert.alert('Rename', 'Renaming is not available on Android yet.');
+      return;
     }
+    Alert.prompt(
+      'Rename Video',
+      'Enter a new name for your video',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Save',
+          onPress: async (newName?: string) => {
+            if (typeof newName !== 'string' || !newName.trim()) return;
+            try {
+              if (!user) throw new Error('User not authenticated');
+              await updateDoc(doc(db, 'users', user.uid, 'videos', item.id), { liftName: newName });
+
+              setVideos((current) => current.map((v) => (v.id === item.id ? { ...v, liftName: newName } : v)));
+              setSelected(null);
+            } catch (error: unknown) {
+              Alert.alert('Rename failed', errorMessage(error));
+            }
+          },
+        },
+      ],
+      'plain-text',
+      item.liftName,
+    );
   }
 
   function openActions(item: VideoItem) {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
+          title: item.liftName || 'Video',
           options: ['Cancel', 'Rename', 'Save to Photos', 'Delete'],
           destructiveButtonIndex: 3,
           cancelButtonIndex: 0,
           userInterfaceStyle: 'dark',
         },
-        (i) => {
-          if (i === 1) openRename(item);
-          if (i === 2) handleSave(item);
-          if (i === 3) handleDelete(item);
-        }
+        (index) => {
+          if (index === 1) openRename(item);
+          if (index === 2) handleSave(item);
+          if (index === 3) handleDelete(item);
+        },
       );
     } else {
       Alert.alert(item.liftName || 'Video', '', [
@@ -266,126 +303,89 @@ export default function LibraryScreen() {
     }
   }
 
-  function formatDate(ts?: FirebaseFirestoreTypes.Timestamp) {
-    try {
-      const d = ts?.toDate?.() ?? new Date();
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-      return '';
-    }
-  }
-
   // render
 
-  const renderThumb = ({ item }: { item: VideoItem }) => (
-    <Pressable
-      style={styles.card}
+  const renderItem = ({ item }: { item: VideoItem }) => (
+    <LibraryCard
+      title={item.liftName || 'Untitled'}
+      subtitle={formatDate(item.createdAt)}
+      thumbnailUrl={item.thumbnailUrl}
+      width={cardWidth}
       onPress={() => setSelected(item)}
-      android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
-    >
-      <Image source={{ uri: item.thumbnailUrl }} style={styles.thumb} />
-
-      {/* kebab menu */}
-      <Pressable style={styles.kebab} hitSlop={10} onPress={() => openActions(item)}>
-        <Feather name="more-vertical" size={18} color="#fff" />
-      </Pressable>
-
-      {/* bottom overlay */}
-      <View style={styles.overlay}>
-        <Text numberOfLines={1} style={styles.name}>
-          {item.liftName || 'Untitled'}
-        </Text>
-        <Text style={styles.meta}>{formatDate(item.createdAt)}</Text>
-      </View>
-    </Pressable>
+      onMenuPress={() => openActions(item)}
+    />
   );
 
   const renderContent = () => {
     if (loading) {
       return (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} size="large" />
-          <Typography variant="body" color={colors.textSecondary} style={{ marginTop: spacing.sm }}>
-            Loading…
-          </Typography>
+        <View style={styles.skeletonGrid}>
+          {SKELETON_IDS.map((id) => (
+            <LibraryCardSkeleton key={id} width={cardWidth} />
+          ))}
         </View>
       );
     }
 
     if (videos.length === 0) {
       return (
-        <View style={styles.center}>
-          <Typography variant="body" color={colors.textSecondary}>
-            No saved videos yet
-          </Typography>
-          <Pressable
-            onPress={() => router.push('/')}
-            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
-          >
-            <Typography variant="subtitle" weight="bold" color={colors.background}>
-              Upload a video
-            </Typography>
-          </Pressable>
-        </View>
+        <EmptyState
+          icon="film-outline"
+          title="No lifts yet"
+          message="Track a lift and it will show up here with its bar path."
+          actionLabel="Track a lift"
+          onAction={() => router.push('/')}
+        />
       );
     }
 
     return (
       <FlatList
         data={sortedVideos}
-        keyExtractor={(v) => v.id}
-        renderItem={renderThumb}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        contentContainerStyle={styles.listContent}
+        keyExtractor={(video) => video.id}
+        renderItem={renderItem}
+        numColumns={COLUMNS}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={[styles.grid, bottomInset]}
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews
-        initialNumToRender={8}
-        windowSize={7}
+        initialNumToRender={6}
+        windowSize={5}
       />
     );
   };
 
   return (
-    <Screen>
+    <Screen edges={TAB_EDGES}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Typography variant="title" weight="bold" style={styles.title}>
-            Library
-          </Typography>
-          <View style={styles.sortChips}>
-            <Pressable
-              onPress={() => setSort('recent')}
-              style={[styles.chip, sort === 'recent' && styles.chipActive]}
-            >
-              <Typography variant="caption" color={sort === 'recent' ? colors.background : colors.textMuted} weight="bold">
-                Recent
-              </Typography>
-            </Pressable>
-            <Pressable
-              onPress={() => setSort('name')}
-              style={[styles.chip, sort === 'name' && styles.chipActive]}
-            >
-              <Typography variant="caption" color={sort === 'name' ? colors.background : colors.textMuted} weight="bold">
-                Name
-              </Typography>
-            </Pressable>
-          </View>
-        </View>
+        <ScreenHeader
+          title="Library"
+          subtitle={loading ? 'Loading your lifts…' : liftCountLabel(videos.length)}
+          right={
+            videos.length > 1 ? (
+              <SegmentedControl options={SORT_OPTIONS} value={sort} onChange={setSort} accessibilityLabel="Sort lifts" />
+            ) : undefined
+          }
+          style={styles.header}
+        />
 
         {renderContent()}
 
-        {selected && (
-          <PreviewModal
+        {selected ? (
+          <LibraryDetailModal
             visible
-            item={selected}
+            item={{
+              url: selected.url,
+              liftName: selected.liftName,
+              path: selected.path,
+              subtitle: formatDate(selected.createdAt),
+            }}
             busy={busy}
             onClose={() => setSelected(null)}
             onSave={() => handleSave(selected)}
             onDelete={() => handleDelete(selected)}
             onRename={() => openRename(selected)}
           />
-        )}
+        ) : null}
       </View>
     </Screen>
   );
@@ -394,95 +394,21 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: HORIZONTAL_PADDING,
-    paddingTop: spacing.xl,
-    backgroundColor: colors.background,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.md,
   },
   header: {
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
-  title: {
-    color: colors.textPrimary,
+  grid: {
+    gap: GUTTER,
   },
-  sortChips: {
+  gridRow: {
+    gap: GUTTER,
+  },
+  skeletonGrid: {
     flexDirection: 'row',
-    gap: spacing.md,
-  },
-  chip: {
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
-  },
-  chipActive: {
-    backgroundColor: colors.accent,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  cta: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-  },
-  ctaPressed: {
-    transform: [{ scale: 0.97 }],
-  },
-  listContent: {
-    paddingBottom: spacing.xl,
-    paddingHorizontal: 0,
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    marginBottom: GUTTER,
-  },
-  card: {
-    width: THUMB_SIZE,
-    marginBottom: 0,
-    borderRadius: radii.md,
-    overflow: 'hidden',
-    backgroundColor: '#000',
-    borderColor: colors.border,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  thumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE * (16 / 9),
-  },
-  kebab: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderRadius: 999,
-    padding: 6,
-  },
-  overlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  name: { 
-    color: colors.textPrimary, 
-    fontSize: 13.5, 
-    fontWeight: '800' 
-  },
-  meta: { 
-    color: colors.textSecondary, 
-    fontSize: 11, 
-    marginTop: 2,
-    letterSpacing: 0.2 
+    flexWrap: 'wrap',
+    gap: GUTTER,
   },
 });

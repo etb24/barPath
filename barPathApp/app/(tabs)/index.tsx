@@ -1,31 +1,60 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Alert, Pressable, ActivityIndicator } from 'react-native';
-import * as VideoPicker from 'expo-image-picker';
+import React, { useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { getAuth } from '@react-native-firebase/auth';
-import Screen from '../components/ui/Screen';
-import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '@/styles/theme';
+import Button, { type IconName } from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Divider from '@/components/ui/Divider';
+import ListRow from '@/components/ui/ListRow';
+import Screen from '@/components/ui/Screen';
+import ScreenHeader from '@/components/ui/ScreenHeader';
+import Typography from '@/components/ui/Typography';
+import { colors, layout, spacing } from '@/styles/theme';
 
-export default function UploadScreen() {
+const DEFAULT_LIFT_NAME = 'My Lift';
+const TAB_EDGES = ['top'] as const;
+
+interface Tip {
+  icon: IconName;
+  title: string;
+  detail: string;
+}
+
+const TIPS: readonly Tip[] = [
+  {
+    icon: 'phone-portrait-outline',
+    title: 'Film from the side',
+    detail: 'A side-on angle at hip height shows the bar’s real forward and backward drift.',
+  },
+  {
+    icon: 'scan-outline',
+    title: 'Keep the bar in frame',
+    detail: 'Leave room above and below the full range of the rep so the detector never loses it.',
+  },
+  {
+    icon: 'body-outline',
+    title: 'Prop the phone up',
+    detail: 'A steady camera gives a clean trace. Handheld footage adds wobble to the path.',
+  },
+];
+
+export default function TrackScreen() {
   const router = useRouter();
-  const auth = getAuth();
-  const user = auth.currentUser;
-
+  const tabBarHeight = useBottomTabBarHeight();
   const [opening, setOpening] = useState(false);
 
-  const pickAndProcess = async () => {
-    if (!user) {
-      Alert.alert('Error', 'Please log in first');
+  const bottomInset = useMemo(() => ({ paddingBottom: tabBarHeight + spacing.lg }), [tabBarHeight]);
+
+  const pickVideo = async () => {
+    if (!getAuth().currentUser) {
+      Alert.alert('Sign in required', 'Please sign in before tracking a lift.');
       return;
     }
     try {
       setOpening(true);
-      const result = await VideoPicker.launchImageLibraryAsync({
-        mediaTypes: ['videos'],
-        quality: 1,
-      });
-
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 1 });
       if (result.canceled || !result.assets[0]?.uri) return;
       const asset = result.assets[0];
 
@@ -33,81 +62,82 @@ export default function UploadScreen() {
         pathname: '/processing',
         params: {
           inputUri: asset.uri,
-          liftName: 'My Lift',
-          // the on-device tracker needs duration to compute frame count
+          liftName: DEFAULT_LIFT_NAME,
+          // the on-device tracker needs duration to compute frame count;
           // dimensions drive the overlay's aspect ratio on preview
           duration: String(asset.duration ?? 0),
           width: String(asset.width ?? 0),
           height: String(asset.height ?? 0),
         },
       });
+    } catch (error: unknown) {
+      Alert.alert('Couldn’t open your videos', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setOpening(false);
     }
   };
 
   return (
-    <Screen>
-      <View style={styles.wrapper}>
-        <Typography variant="title" weight="bold">
-          Upload
-        </Typography>
+    <Screen edges={TAB_EDGES}>
+      <ScrollView contentContainerStyle={[styles.content, bottomInset]} showsVerticalScrollIndicator={false}>
+        <ScreenHeader title="Track a lift" subtitle="Pick a video and we’ll trace the bar." />
 
-        <Pressable
-          onPress={pickAndProcess}
-          disabled={opening}
-          android_ripple={{ color: 'rgba(0,0,0,0.15)' }}
-          accessibilityRole="button"
-          accessibilityLabel={opening ? 'Opening video library' : 'Upload Video'}
-          testID="pick-process-button"
-          style={({ pressed }) => [
-            styles.button,
-            pressed && styles.buttonPressed,
-            opening && styles.buttonDisabled,
-          ]}
-        >
-          <View style={styles.buttonInner}>
-            {opening && (
-              <ActivityIndicator size="small" color={colors.background} style={styles.spinner} />
-            )}
-            <Typography variant="subtitle" weight="bold" color={colors.background}>
-              {opening ? 'Opening…' : 'Upload video'}
+        <Card style={styles.hero}>
+          <View style={styles.heroCopy}>
+            <Typography variant="heading">Your bar path, frame by frame</Typography>
+            <Typography variant="body" color={colors.textSecondary}>
+              Detection runs on your phone. Nothing is uploaded until you choose to save.
             </Typography>
           </View>
-        </Pressable>
-      </View>
+          <Button
+            label="Choose a video"
+            icon="videocam"
+            fullWidth
+            loading={opening}
+            onPress={pickVideo}
+            testID="pick-process-button"
+          />
+        </Card>
+
+        <View style={styles.section}>
+          <Typography variant="label" color={colors.textMuted} style={styles.sectionLabel}>
+            For a clean trace
+          </Typography>
+          <Card padded={false} style={styles.rows}>
+            {TIPS.map((tip, index) => (
+              <React.Fragment key={tip.title}>
+                {index > 0 ? <Divider /> : null}
+                <ListRow icon={tip.icon} title={tip.title} subtitle={tip.detail} />
+              </React.Fragment>
+            ))}
+          </Card>
+        </View>
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
+  content: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.md,
     gap: spacing.lg,
   },
-  button: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  hero: {
+    gap: spacing.md,
+    padding: spacing.lg,
   },
-  buttonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroCopy: {
+    gap: spacing.xs,
+  },
+  section: {
     gap: spacing.sm,
   },
-  spinner: {
-    marginRight: spacing.xs,
+  sectionLabel: {
+    paddingHorizontal: spacing.xxs,
   },
-  buttonPressed: {
-    transform: [{ scale: 0.985 }],
-  },
-  buttonDisabled: {
-    opacity: 0.75,
+  rows: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xxs,
   },
 });

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "barpath",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
@@ -39,9 +39,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#0B0B0C"
         }
       ],
       [
@@ -63,6 +63,7 @@
     },
     "extra": {
       "googleWebClientId": "178258878322-t57cm3fjt2shdnf4iketkjh8n8spjaro.apps.googleusercontent.com"
-    }
+    },
+    "backgroundColor": "#0B0B0C"
   }
 }

@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Image, ActivityIndicator, Platform } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
-import { signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth';
-import { GoogleSignin, GoogleSigninButton, statusCodes } from '@react-native-google-signin/google-signin';
-import { auth } from '../../services/FirebaseConfig';
-import Screen from '../components/ui/Screen';
-import Typography from '../components/ui/Typography';
-import { colors, spacing } from '@/styles/theme';
+import { Image } from 'expo-image';
+import { GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { auth } from '@/services/FirebaseConfig';
+import Button from '@/components/ui/Button';
+import Screen from '@/components/ui/Screen';
+import Typography from '@/components/ui/Typography';
+import { colors, layout, spacing } from '@/styles/theme';
 
 const GOOGLE_WEB_CLIENT_ID = Constants.expoConfig?.extra?.googleWebClientId as string | undefined;
+const LOGO = require('../../assets/images/splash-icon.png');
 
-export default function Login() {
+const LOGO_SIZE = 96;
+
+export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
-
-  const LOGO = require('../../assets/images/logo.png');
 
   useEffect(() => {
     if (!GOOGLE_WEB_CLIENT_ID) {
@@ -23,21 +26,22 @@ export default function Login() {
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
   }, []);
 
-  const onGoogleButtonPress = async () => {
+  const signInWithGoogle = async () => {
     try {
       setLoading(true);
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       }
-      const signInResult = await GoogleSignin.signIn();
-      const idToken = signInResult.data?.idToken;
-      if (!idToken) throw new Error('No ID token found');
-      const googleCredential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(auth, googleCredential);
-      // user is now signed in
-    } catch (err: any) {
-      if (err?.code === statusCodes.SIGN_IN_CANCELLED || err?.code === statusCodes.IN_PROGRESS) return;
-      console.error('Google sign-in error', err);
+      const result = await GoogleSignin.signIn();
+      const idToken = result.data?.idToken;
+      if (!idToken) throw new Error('Google did not return an ID token');
+      await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+      // RootLayout's auth listener moves us onto the tabs
+    } catch (error: unknown) {
+      const code = (error as { code?: string } | null)?.code;
+      if (code === statusCodes.SIGN_IN_CANCELLED || code === statusCodes.IN_PROGRESS) return;
+      console.error('Google sign-in error', error);
+      Alert.alert('Sign-in failed', 'Something went wrong signing in with Google. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -46,28 +50,35 @@ export default function Login() {
   return (
     <Screen>
       <View style={styles.container}>
-        <Image
-          source={LOGO}
-          style={styles.logo}
-          resizeMode="contain"
-          accessible
-          accessibilityLabel="BarPath logo"
-        />
-        <Typography variant="title" weight="black">
-          barPath.io
-        </Typography>
+        <View style={styles.hero}>
+          <View style={styles.brand}>
+            <Image source={LOGO} style={styles.logo} contentFit="contain" accessibilityLabel="barPath logo" />
+            <Typography variant="display">barPath</Typography>
+          </View>
+          <View style={styles.copy}>
+            <Typography variant="heading" align="center">
+              See the bar path on every rep.
+            </Typography>
+            <Typography variant="body" color={colors.textSecondary} align="center">
+              Pick a lift video and get a color-coded trace of the bar, tracked entirely on your phone.
+            </Typography>
+          </View>
+        </View>
 
-        <GoogleSigninButton
-          style={styles.googleButton}
-          size={GoogleSigninButton.Size.Wide}
-          color={GoogleSigninButton.Color.Dark}
-          onPress={onGoogleButtonPress}
-          disabled={loading}
-          accessibilityLabel="Sign in with Google"
-          testID="google-signin-button"
-        />
-
-        {loading && <ActivityIndicator color={colors.accent} />}
+        <View style={styles.footer}>
+          <Button
+            label="Continue with Google"
+            icon="logo-google"
+            variant="secondary"
+            fullWidth
+            loading={loading}
+            onPress={signInWithGoogle}
+            testID="google-signin-button"
+          />
+          <Typography variant="caption" color={colors.textMuted} align="center">
+            Videos are analyzed on your device. Only the lifts you save are uploaded to your library.
+          </Typography>
+        </View>
       </View>
     </Screen>
   );
@@ -76,18 +87,29 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    justifyContent: 'center',
+    paddingHorizontal: layout.screenPadding,
+    paddingBottom: spacing.lg,
+    justifyContent: 'space-between',
+  },
+  hero: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.lg,
   },
-  logo: {
-    width: 64,
-    height: 64,
+  brand: {
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  googleButton: {
-    width: '100%',
-    maxWidth: 240,
-    height: 48,
+  logo: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+  },
+  copy: {
+    gap: spacing.xs,
+    maxWidth: 320,
+  },
+  footer: {
+    gap: spacing.md,
   },
 });
