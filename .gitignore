@@ -8,3 +8,4 @@ serviceAccount*.json
 .env.*
 AGENTS.md
 CLAUDE.md
+backend/

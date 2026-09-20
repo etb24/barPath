@@ -1,253 +1,149 @@
-import React from 'react';
-import { ScrollView, View, StyleSheet, Pressable, Image, Alert } from 'react-native';
+import React, { useMemo } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import Constants from 'expo-constants';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { getAuth, signOut } from '@react-native-firebase/auth';
-import { useRouter } from 'expo-router';
-import Screen from '../components/ui/Screen';
-import Card from '../components/ui/Card';
-import Pill from '../components/ui/Pill';
-import Typography from '../components/ui/Typography';
-import { colors, spacing, radii, shadow } from '@/styles/theme';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Divider from '@/components/ui/Divider';
+import ListRow from '@/components/ui/ListRow';
+import Screen from '@/components/ui/Screen';
+import ScreenHeader from '@/components/ui/ScreenHeader';
+import Typography from '@/components/ui/Typography';
+import { colors, layout, spacing } from '@/styles/theme';
+
+const TAB_EDGES = ['top'] as const;
+const AVATAR_SIZE = 56;
+const IMAGE_FADE_MS = 200;
 
 export default function ProfileScreen() {
   const auth = getAuth();
-  const router = useRouter();
   const user = auth.currentUser;
+  const tabBarHeight = useBottomTabBarHeight();
 
-const initial =
-  user?.displayName?.[0]?.toUpperCase() ||
-  user?.email?.[0]?.toUpperCase() ||
-  'U';
+  const bottomInset = useMemo(() => ({ paddingBottom: tabBarHeight + spacing.lg }), [tabBarHeight]);
+
+  const initial = user?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
 
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-    } catch (e: any) {
-      console.error('Sign out error:', e);
-      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    } catch (error: unknown) {
+      console.error('Sign out error:', error);
+      Alert.alert('Sign out failed', 'Please try again.');
     }
   };
 
-  const goToLibrary = () => router.push('/library');
-  const goToUpload  = () => router.push('/upload');
-
   return (
-    <Screen>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Pill label="Profile" tone="accent" uppercase />
+    <Screen edges={TAB_EDGES}>
+      <ScrollView contentContainerStyle={[styles.content, bottomInset]} showsVerticalScrollIndicator={false}>
+        <ScreenHeader title="Profile" />
+
+        <Card>
           <View style={styles.identity}>
             {user?.photoURL ? (
-              <Image source={{ uri: user.photoURL }} style={styles.avatar} />
+              <Image
+                source={{ uri: user.photoURL }}
+                style={styles.avatar}
+                contentFit="cover"
+                transition={IMAGE_FADE_MS}
+                accessibilityLabel="Profile photo"
+              />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Typography variant="hero" weight="black">
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Typography variant="heading" color={colors.accent}>
                   {initial}
                 </Typography>
               </View>
             )}
-
             <View style={styles.identityText}>
-              <Typography variant="title" weight="black">
+              <Typography variant="heading" numberOfLines={1}>
                 {user?.displayName || 'Anonymous'}
               </Typography>
               {user?.email ? (
-                <Typography variant="body" color={colors.textSecondary}>
+                <Typography variant="caption" color={colors.textSecondary} numberOfLines={1}>
                   {user.email}
                 </Typography>
               ) : null}
             </View>
           </View>
-
-          <Card tone="secondary" style={styles.statsCard}>
-            <Typography variant="subtitle" weight="bold" color={colors.textSecondary}>
-              Training stats coming soon
-            </Typography>
-            <Typography variant="body" color={colors.textMuted} style={styles.statsCopy}>
-              We’re building deeper analytics so you can track volume, consistency, and streaks right from here.
-            </Typography>
-          </Card>
-        </View>
+        </Card>
 
         <View style={styles.section}>
-          <Typography variant="subtitle" weight="bold" color={colors.textSecondary}>
-            Quick actions
+          <Typography variant="label" color={colors.textMuted} style={styles.sectionLabel}>
+            Privacy
           </Typography>
-          <Card tone="secondary" padded={false} style={styles.cardList}>
-            <ProfileRow title="Upload a lift" subtitle="Pick a video to analyze" onPress={goToUpload} />
-            <ProfileRow title="Your library" subtitle="Manage saved videos" onPress={goToLibrary} />
+          <Card padded={false} style={styles.rows}>
+            <ListRow
+              icon="phone-portrait-outline"
+              title="Tracking runs on your phone"
+              subtitle="Videos are analyzed on-device. Nothing is uploaded while a lift is being processed."
+            />
+            <Divider />
+            <ListRow
+              icon="cloud-upload-outline"
+              title="Only saved lifts are uploaded"
+              subtitle="Saving a lift stores the clip and its bar path in your private library."
+            />
           </Card>
         </View>
 
         <View style={styles.section}>
-          <Typography variant="subtitle" weight="bold" color={colors.textSecondary}>
+          <Typography variant="label" color={colors.textMuted} style={styles.sectionLabel}>
             About
           </Typography>
-          <Card tone="secondary" padded={false} style={styles.aboutCard}>
-            <InfoRow label="App" value="barPath.io" />
-            <View style={styles.divider} />
-            <InfoRow label="Version" value="1.0.0" />
+          <Card padded={false} style={styles.rows}>
+            <ListRow icon="logo-google" title="Signed in with Google" />
+            <Divider />
+            <ListRow
+              icon="information-circle-outline"
+              title="Version"
+              value={Constants.expoConfig?.version ?? '1.0.0'}
+            />
           </Card>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.signOutButton, pressed && styles.signOutPressed]}
-          android_ripple={{ color: 'rgba(0,0,0,0.15)' }}
-          onPress={handleSignOut}
-        >
-          <Typography variant="subtitle" weight="bold" color={colors.textPrimary}>
-            Sign out
-          </Typography>
-        </Pressable>
+        <Button label="Sign out" icon="log-out-outline" variant="destructive" fullWidth onPress={handleSignOut} />
       </ScrollView>
     </Screen>
   );
 }
 
-// might delete this component later
-function ProfileRow({
-  title,
-  subtitle,
-  onPress,
-}: {
-  title: string;
-  subtitle?: string;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      android_ripple={{ color: 'rgba(0,0,0,0.15)' }}
-      style={({ pressed }) => [rowStyles.row, pressed && rowStyles.pressed]}
-    >
-      <View style={rowStyles.texts}>
-        <Typography variant="subtitle" weight="bold">
-          {title}
-        </Typography>
-        {subtitle ? (
-          <Typography variant="caption" color={colors.textMuted} style={rowStyles.subtitle}>
-            {subtitle}
-          </Typography>
-        ) : null}
-      </View>
-      <Typography variant="title" color={colors.textMuted}>
-        ›
-      </Typography>
-    </Pressable>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.aboutRow}>
-      <Typography variant="caption" color={colors.textMuted}>
-        {label}
-      </Typography>
-      <Typography variant="body" color={colors.textSecondary}>
-        {value}
-      </Typography>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
-    paddingTop: spacing.xl,
-    gap: spacing.xl,
-  },
-  header: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.md,
     gap: spacing.lg,
-  },
-  avatar: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    borderWidth: 2,
-    borderColor: colors.accent,
-    marginBottom: 14,
-  },
-  avatarPlaceholder: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: colors.surfaceAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.accent,
   },
   identity: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
-  },
-  identityText: {
-    gap: spacing.xs,
-  },
-  statsCard: {
-    gap: spacing.sm,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-  },
-  statsCopy: {
-    lineHeight: 20,
-  },
-  section: {
     gap: spacing.md,
   },
-  cardList: {
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: colors.surfaceRaised,
   },
-  aboutCard: {
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  aboutRow: {
-    paddingVertical: spacing.sm,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginVertical: spacing.xs,
-  },
-  signOutButton: {
-    alignSelf: 'center',
-    backgroundColor: colors.destructive,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radii.md,
-    ...shadow.card,
-  },
-  signOutPressed: {
-    transform: [{ scale: 0.97 }],
-  },
-});
-
-const rowStyles = StyleSheet.create({
-  row: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  avatarFallback: {
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentSoft,
   },
-  pressed: { transform: [{ scale: 0.99 }] },
-  texts: { flex: 1, paddingRight: 12 },
-  subtitle: { marginTop: spacing.xs },
+  identityText: {
+    flex: 1,
+    gap: 2,
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionLabel: {
+    paddingHorizontal: spacing.xxs,
+  },
+  rows: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xxs,
+  },
 });

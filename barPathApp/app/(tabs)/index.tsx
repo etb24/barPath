@@ -1,180 +1,143 @@
-import React, { useState } from 'react';
-import { ScrollView, View, StyleSheet, Platform, LayoutAnimation, UIManager } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { getAuth } from '@react-native-firebase/auth';
-import QuickAction from '../components/QuickAction';
-import Accordion from '../components/Accordion';
-import Bullet from '../components/Bullet';
-import Screen from '../components/ui/Screen';
-import Card from '../components/ui/Card';
-import Pill from '../components/ui/Pill';
-import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '@/styles/theme';
+import Button, { type IconName } from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Divider from '@/components/ui/Divider';
+import ListRow from '@/components/ui/ListRow';
+import Screen from '@/components/ui/Screen';
+import ScreenHeader from '@/components/ui/ScreenHeader';
+import Typography from '@/components/ui/Typography';
+import { colors, layout, spacing } from '@/styles/theme';
 
-// enable layout animation on Android (for accordion)
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+const DEFAULT_LIFT_NAME = 'My Lift';
+const TAB_EDGES = ['top'] as const;
+
+interface Tip {
+  icon: IconName;
+  title: string;
+  detail: string;
 }
 
-export default function HomeScreen() {
+const TIPS: readonly Tip[] = [
+  {
+    icon: 'phone-portrait-outline',
+    title: 'Film from the side',
+    detail: 'A side-on angle at hip height shows the bar’s real forward and backward drift.',
+  },
+  {
+    icon: 'scan-outline',
+    title: 'Keep the bar in frame',
+    detail: 'Leave room above and below the full range of the rep so the detector never loses it.',
+  },
+  {
+    icon: 'body-outline',
+    title: 'Prop the phone up',
+    detail: 'A steady camera gives a clean trace. Handheld footage adds wobble to the path.',
+  },
+];
+
+export default function TrackScreen() {
   const router = useRouter();
-  const auth   = getAuth();
-  const user   = auth.currentUser;
+  const tabBarHeight = useBottomTabBarHeight();
+  const [opening, setOpening] = useState(false);
 
-  const goToUpload  = () => router.push('/upload');
-  const goToLibrary = () => router.push('/library');
-  const goToProfile = () => router.push('/profile'); // change this route for future a patch notes
+  const bottomInset = useMemo(() => ({ paddingBottom: tabBarHeight + spacing.lg }), [tabBarHeight]);
 
+  const pickVideo = async () => {
+    if (!getAuth().currentUser) {
+      Alert.alert('Sign in required', 'Please sign in before tracking a lift.');
+      return;
+    }
+    try {
+      setOpening(true);
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 1 });
+      if (result.canceled || !result.assets[0]?.uri) return;
+      const asset = result.assets[0];
+
+      router.push({
+        pathname: '/processing',
+        params: {
+          inputUri: asset.uri,
+          liftName: DEFAULT_LIFT_NAME,
+          // the on-device tracker needs duration to compute frame count;
+          // dimensions drive the overlay's aspect ratio on preview
+          duration: String(asset.duration ?? 0),
+          width: String(asset.width ?? 0),
+          height: String(asset.height ?? 0),
+        },
+      });
+    } catch (error: unknown) {
+      Alert.alert('Couldn’t open your videos', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setOpening(false);
+    }
+  };
 
   return (
-    <Screen>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.hero}>
-          <Pill label="barPath.io" tone="accent" uppercase />
-          <Typography variant="hero" weight="black" style={styles.heroTitle}>
-            Track a sharper bar path.
-          </Typography>
-          <Typography variant="body" color={colors.textSecondary} style={styles.heroCopy}>
-            Analyze every lift with AI overlays, actionable cues, and a clean history of your best sets.
-          </Typography>
-          <View style={styles.heroActions}>
-            <QuickAction
-              title="Upload a lift"
-              subtitle="Pick a video to analyze"
-              icon="upload"
-              onPress={goToUpload}
-            />
+    <Screen edges={TAB_EDGES}>
+      <ScrollView contentContainerStyle={[styles.content, bottomInset]} showsVerticalScrollIndicator={false}>
+        <ScreenHeader title="Track a lift" subtitle="Pick a video and we’ll trace the bar." />
+
+        <Card style={styles.hero}>
+          <View style={styles.heroCopy}>
+            <Typography variant="heading">Your bar path, frame by frame</Typography>
+            <Typography variant="body" color={colors.textSecondary}>
+              Detection runs on your phone. Nothing is uploaded until you choose to save.
+            </Typography>
           </View>
+          <Button
+            label="Choose a video"
+            icon="videocam"
+            fullWidth
+            loading={opening}
+            onPress={pickVideo}
+            testID="pick-process-button"
+          />
+        </Card>
+
+        <View style={styles.section}>
+          <Typography variant="label" color={colors.textMuted} style={styles.sectionLabel}>
+            For a clean trace
+          </Typography>
+          <Card padded={false} style={styles.rows}>
+            {TIPS.map((tip, index) => (
+              <React.Fragment key={tip.title}>
+                {index > 0 ? <Divider /> : null}
+                <ListRow icon={tip.icon} title={tip.title} subtitle={tip.detail} />
+              </React.Fragment>
+            ))}
+          </Card>
         </View>
-
-        <Card style={styles.quickCard}>
-          <Typography variant="subtitle" weight="bold" color={colors.textSecondary}>
-            Jump back in
-          </Typography>
-          <View style={styles.quickRow}>
-            <QuickAction
-              title="Your library"
-              subtitle="Review saved videos"
-              icon="folder"
-              onPress={goToLibrary}
-            />
-            <QuickAction
-              title="What’s new"
-              subtitle="See latest updates"
-              icon="zap"
-              onPress={goToProfile} // replace with actual "what's new" route when available
-            />
-          </View>
-        </Card>
-
-        <Card tone="secondary" style={styles.infoCard}>
-          <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>
-            Nail the bar path every time
-          </Typography>
-          <Typography variant="body" color={colors.textMuted} style={styles.sectionBody}>
-            Follow these quick tips to get clean, high-contrast footage so our tracker can stay on the barbell.
-          </Typography>
-
-          <Accordion
-            title="How to get the best results"
-            defaultOpen
-            containerStyle={styles.accordion}
-            headerStyle={styles.accordionHeader}
-            titleStyle={styles.accordionTitle}
-            chevronStyle={styles.accordionChevron}
-            bodyStyle={styles.accordionBody}
-          >
-            <Bullet text="Record from the side with the lifter centered and the camera steady." />
-            <Bullet text="Keep the barbell, plates, and feet fully in frame for the complete set." />
-            <Bullet text="Use bright, even lighting and avoid motion blur or heavy compression." />
-            <Bullet text="Trim your clip close to the set to speed up upload and processing." />
-            <Bullet text="Review the preview and save to your library to track progress over time." />
-          </Accordion>
-
-          <Accordion
-            title="Troubleshooting & tips"
-            containerStyle={styles.accordion}
-            headerStyle={styles.accordionHeader}
-            titleStyle={styles.accordionTitle}
-            chevronStyle={styles.accordionChevron}
-            bodyStyle={styles.accordionBody}
-          >
-            <Bullet text="If tracking slips, try a higher angle or remove clutter around the bar." />
-            <Bullet text="Higher frame rates (60 fps) give cleaner tracking on fast pulls." />
-            <Bullet text="Grant photo/video permissions so the uploader can access your library." />
-            <Bullet text="Videos stay private to your account until you delete them." />
-          </Accordion>
-        </Card>
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-  },
-  hero: {
-    borderRadius: radii.xl,
-    padding: spacing.xl,
-    marginBottom: spacing.xl,
-    backgroundColor: colors.surfaceHighlight,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  heroTitle: {
-    marginTop: spacing.md,
-  },
-  heroCopy: {
-    marginTop: spacing.sm,
-    lineHeight: 22,
-  },
-  heroActions: {
-    marginTop: spacing.lg,
-  },
-  quickCard: {
-    marginBottom: spacing.xl,
+  content: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.md,
     gap: spacing.lg,
   },
-  quickRow: {
-    flexDirection: 'row',
+  hero: {
     gap: spacing.md,
-    flexWrap: 'wrap',
+    padding: spacing.lg,
   },
-  infoCard: {
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
+  heroCopy: {
+    gap: spacing.xs,
   },
-  sectionHeading: {
-    color: colors.textPrimary,
+  section: {
+    gap: spacing.sm,
   },
-  sectionBody: {
-    lineHeight: 22,
+  sectionLabel: {
+    paddingHorizontal: spacing.xxs,
   },
-  accordion: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    marginTop: spacing.md,
-  },
-  accordionHeader: {
-    paddingVertical: spacing.md,
+  rows: {
     paddingHorizontal: spacing.md,
-  },
-  accordionBody: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  accordionTitle: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  accordionChevron: {
-    color: colors.textMuted,
+    paddingVertical: spacing.xxs,
   },
 });

@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Image, ActivityIndicator, Platform } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
-import { signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth';
-import { GoogleSignin, GoogleSigninButton, statusCodes } from '@react-native-google-signin/google-signin';
-import { auth } from '../../services/FirebaseConfig';
-import Screen from '../components/ui/Screen';
-import Card from '../components/ui/Card';
-import Typography from '../components/ui/Typography';
-import { colors, spacing, radii } from '@/styles/theme';
+import { Image } from 'expo-image';
+import { GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { auth } from '@/services/FirebaseConfig';
+import Button from '@/components/ui/Button';
+import Screen from '@/components/ui/Screen';
+import Typography from '@/components/ui/Typography';
+import { colors, layout, spacing } from '@/styles/theme';
 
 const GOOGLE_WEB_CLIENT_ID = Constants.expoConfig?.extra?.googleWebClientId as string | undefined;
+const LOGO = require('../../assets/images/splash-icon.png');
 
-export default function Login() {
+const LOGO_SIZE = 96;
+
+export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
-
-  const LOGO = require('../../assets/images/logo.png');
 
   useEffect(() => {
     if (!GOOGLE_WEB_CLIENT_ID) {
@@ -24,21 +26,22 @@ export default function Login() {
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
   }, []);
 
-  const onGoogleButtonPress = async () => {
+  const signInWithGoogle = async () => {
     try {
       setLoading(true);
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       }
-      const signInResult = await GoogleSignin.signIn();
-      const idToken = signInResult.data?.idToken;
-      if (!idToken) throw new Error('No ID token found');
-      const googleCredential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(auth, googleCredential);
-      // user is now signed in
-    } catch (err: any) {
-      if (err?.code === statusCodes.SIGN_IN_CANCELLED || err?.code === statusCodes.IN_PROGRESS) return;
-      console.error('Google sign-in error', err);
+      const result = await GoogleSignin.signIn();
+      const idToken = result.data?.idToken;
+      if (!idToken) throw new Error('Google did not return an ID token');
+      await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+      // RootLayout's auth listener moves us onto the tabs
+    } catch (error: unknown) {
+      const code = (error as { code?: string } | null)?.code;
+      if (code === statusCodes.SIGN_IN_CANCELLED || code === statusCodes.IN_PROGRESS) return;
+      console.error('Google sign-in error', error);
+      Alert.alert('Sign-in failed', 'Something went wrong signing in with Google. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -48,50 +51,34 @@ export default function Login() {
     <Screen>
       <View style={styles.container}>
         <View style={styles.hero}>
-          <Typography variant="title" weight="black" color={colors.accent} style={styles.brand}>
-            barPath.io
-          </Typography>
-          <View style={styles.logoBadge}>
-            <Image
-              source={LOGO}
-              style={styles.logoImage}
-              resizeMode="contain"
-              accessible
-              accessibilityLabel="BarPath logo"
-            />
+          <View style={styles.brand}>
+            <Image source={LOGO} style={styles.logo} contentFit="contain" accessibilityLabel="barPath logo" />
+            <Typography variant="display">barPath</Typography>
           </View>
-          <Typography variant="hero" weight="black" style={styles.title}>
-            Track smarter, lift safer
-          </Typography>
-          <Typography variant="body" color={colors.textSecondary} style={styles.subtitle}>
-            Sign in to sync your bar path analyses and view your training archive on any device.
-          </Typography>
+          <View style={styles.copy}>
+            <Typography variant="heading" align="center">
+              See the bar path on every rep.
+            </Typography>
+            <Typography variant="body" color={colors.textSecondary} align="center">
+              Pick a lift video and get a color-coded trace of the bar, tracked entirely on your phone.
+            </Typography>
+          </View>
         </View>
 
-        <Card style={styles.card}>
-          <GoogleSigninButton
-            style={styles.googleButton}
-            size={GoogleSigninButton.Size.Wide}
-            color={GoogleSigninButton.Color.Dark}
-            onPress={onGoogleButtonPress}
-            disabled={loading}
-            accessibilityLabel="Sign in with Google"
+        <View style={styles.footer}>
+          <Button
+            label="Continue with Google"
+            icon="logo-google"
+            variant="secondary"
+            fullWidth
+            loading={loading}
+            onPress={signInWithGoogle}
             testID="google-signin-button"
           />
-
-          {loading && <ActivityIndicator style={{ marginTop: spacing.md }} color={colors.accent} />}
-
-          <Typography variant="caption" color={colors.textMuted} style={styles.legal}>
-            By continuing you agree to our{' '}
-            <Typography variant="caption" color={colors.textSecondary}>Terms</Typography>
-            {' & '}
-            <Typography variant="caption" color={colors.textSecondary}>Privacy</Typography>.
+          <Typography variant="caption" color={colors.textMuted} align="center">
+            Videos are analyzed on your device. Only the lifts you save are uploaded to your library.
           </Typography>
-        </Card>
-
-        <Typography variant="caption" color={colors.textMuted} style={styles.footer}>
-          Made for lifters • v1.0
-        </Typography>
+        </View>
       </View>
     </Screen>
   );
@@ -100,59 +87,29 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
+    paddingHorizontal: layout.screenPadding,
+    paddingBottom: spacing.lg,
+    justifyContent: 'space-between',
+  },
+  hero: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.lg,
   },
-  hero: {
-    alignItems: 'center',
-    gap: spacing.md,
-  },
   brand: {
-    letterSpacing: 1,
-  },
-  logoBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    gap: spacing.sm,
   },
-  // new image style
-  logoImage: {
-    width: 40,
-    height: 40,
+  logo: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
   },
-  title: {
-    textAlign: 'center',
-  },
-  subtitle: {
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  card: {
-    width: '100%',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-    alignItems: 'center',
-  },
-  googleButton: {
-    width: '100%',
-    height: 48,
-    borderRadius: 22,
-    alignSelf: 'center',
-    maxWidth: 240,
-  },
-  legal: {
-    textAlign: 'center',
+  copy: {
+    gap: spacing.xs,
+    maxWidth: 320,
   },
   footer: {
-    textAlign: 'center',
+    gap: spacing.md,
   },
 });

@@ -26,7 +26,6 @@
     "base64-js": "^1.5.1",
     "expo": "^54.0.36",
     "expo-asset": "~12.0.13",
-    "expo-blur": "~15.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
     "expo-file-system": "~19.0.23",
